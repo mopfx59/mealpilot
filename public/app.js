@@ -26,10 +26,11 @@ function renderRecipes() {
 }
 
 function renderShopping() {
-  $('#shopping-list').innerHTML = state.shopping.map(item => `<li><input type="checkbox" data-check="${item.id}" ${item.checked ? 'checked' : ''} aria-label="Cocher ${escapeHtml(item.label)}"><span class="${item.checked ? 'checked' : ''}">${escapeHtml(item.label)}</span><button class="delete-item" data-delete="${item.id}" aria-label="Supprimer">×</button></li>`).join('');
+  $('#shopping-list').innerHTML = state.shopping.map(item => `<li><input type="checkbox" data-check="${item.id}" ${item.checked ? 'checked' : ''} aria-label="Cocher ${escapeHtml(item.label)}"><span class="${item.checked ? 'checked' : ''}">${escapeHtml(item.label)}</span><button class="edit-item" data-edit="${item.id}" aria-label="Modifier">Modifier</button><button class="delete-item" data-delete="${item.id}" aria-label="Supprimer">×</button></li>`).join('');
   $('#shopping-empty').hidden = state.shopping.length > 0;
   const checked = state.shopping.filter(item => item.checked).length; $('#shopping-progress').textContent = state.shopping.length ? `${checked} article${checked > 1 ? 's' : ''} sur ${state.shopping.length} coché${checked > 1 ? 's' : ''}` : 'Prête pour votre prochaine semaine.';
   document.querySelectorAll('[data-check]').forEach(input => input.addEventListener('change', async () => { await request(`/api/shopping/${input.dataset.check}`, { method: 'PATCH' }); await load(); }));
+  document.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', async () => { const item = state.shopping.find(entry => entry.id === button.dataset.edit); const label = prompt('Modifier l’article', item.label); if (label === null || !label.trim()) return; await request(`/api/shopping/${item.id}`, { method: 'PATCH', body: JSON.stringify({ label }) }); await load(); }));
   document.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => { await request(`/api/shopping/${button.dataset.delete}`, { method: 'DELETE' }); await load(); }));
 }
 

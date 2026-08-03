@@ -9,7 +9,7 @@ MealPilot est un planificateur de repas familial, responsive et auto-hébergé. 
 - favoris et recherche ;
 - ajout manuel de recettes ;
 - génération de la liste de courses depuis le menu ;
-- ajout, cochage et suppression d'articles ;
+- ajout, cochage, modification et suppression d'articles ;
 - stockage JSON persistant et écriture atomique ;
 - interface adaptée aux ordinateurs et téléphones Android.
 

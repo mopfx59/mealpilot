@@ -20,4 +20,7 @@ test('le serveur expose son état et permet un parcours fonctionnel', async t =>
   assert.equal(response.status, 201); const recipe = await response.json();
   response = await fetch(`${base}/api/menu`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ day: 'Lundi', meal: 'lunch', recipeId: recipe.id }) }); assert.equal(response.status, 200);
   response = await fetch(`${base}/api/shopping/from-menu`, { method: 'POST' }); const shopping = await response.json(); assert.deepEqual(shopping.map(item => item.label), ['Carottes']);
+  const itemId = shopping[0].id;
+  response = await fetch(`${base}/api/shopping/${itemId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: 'Carottes bio' }) });
+  assert.equal(response.status, 200); assert.equal((await response.json()).label, 'Carottes bio');
 });

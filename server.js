@@ -112,7 +112,15 @@ async function api(req, res, pathname) {
   if (shoppingMatch && req.method === 'PATCH') {
     const item = state.shopping.find(entry => entry.id === decodeURIComponent(shoppingMatch[1]));
     if (!item) return json(res, 404, { error: 'Article introuvable.' });
-    item.checked = !item.checked; writeState(state); return json(res, 200, item);
+    const body = await readBody(req);
+    if (Object.hasOwn(body, 'label')) {
+      const label = String(body.label || '').trim();
+      if (!label) return json(res, 400, { error: 'Article requis.' });
+      item.label = label;
+    } else {
+      item.checked = !item.checked;
+    }
+    writeState(state); return json(res, 200, item);
   }
   if (shoppingMatch && req.method === 'DELETE') {
     const index = state.shopping.findIndex(entry => entry.id === decodeURIComponent(shoppingMatch[1]));
