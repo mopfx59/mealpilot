@@ -2,6 +2,8 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { DEFAULT_PROVIDERS, RecipeCollector, fingerprint } = require('./lib/providers');
+const { generatePlan, recalculatePlanShopping } = require('./lib/planner');
 
 const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -22,7 +24,7 @@ const seasonalRecipes = () => [
   ['Curry de pois chiches', 'Hiver', 'Végétarien', 'Épicé juste ce qu’il faut et prêt rapidement.', [ingredient('pois chiches', 500, 'g'), ingredient('lait de coco', 400, 'ml'), ingredient('tomates concassées', 400, 'g'), ingredient('riz', 300, 'g')], ['Faire revenir les épices.', 'Ajouter pois chiches, tomates et lait de coco.', 'Mijoter 20 minutes et servir avec le riz.']]
 ].map(([title, season, category, description, ingredients, preparation]) => ({ id: randomUUID(), title, season, category, description, ingredients, preparation, favorite: false, personal: false }));
 
-const defaultState = () => ({ recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), shopping: [] });
+const defaultState = () => ({ recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), plan: null, shopping: [], providers: structuredClone(DEFAULT_PROVIDERS), providerStatus: {}, recipeCache: {} });
 
 function parseLegacyIngredient(value) {
   if (value && typeof value === 'object') return { name: String(value.name || '').trim(), quantity: value.quantity ?? '', unit: String(value.unit || '').trim() };
@@ -37,6 +39,7 @@ function migrateState(state) {
   for (const recipe of seasonalRecipes()) if (!knownSeasonalTitles.has(recipe.title)) state.recipes.push(recipe);
   state.menu ||= Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }]));
   state.shopping ||= [];
+  state.plan ||= null; state.providers ||= {}; for (const [key, provider] of Object.entries(DEFAULT_PROVIDERS)) state.providers[key] ||= structuredClone(provider); state.providerStatus ||= {}; state.recipeCache ||= {};
   for (const day of DAYS) state.menu[day] ||= { lunch: null, dinner: null };
   for (const recipe of state.recipes) {
     recipe.ingredients = (recipe.ingredients || []).map(parseLegacyIngredient).filter(item => item.name);
@@ -79,6 +82,13 @@ async function api(req, res, pathname) {
   if (pathname === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok' });
   if (pathname === '/api/state' && req.method === 'GET') return json(res, 200, readState());
   const state = readState();
+  if (pathname === '/api/providers' && req.method === 'GET') return json(res, 200, { providers: state.providers, status: state.providerStatus });
+  const providerMatch = pathname.match(/^\/api\/providers\/([^/]+)$/);
+  if (providerMatch && req.method === 'PATCH') { const key = decodeURIComponent(providerMatch[1]); if (!state.providers[key]) return json(res, 404, { error: 'Fournisseur introuvable.' }); const body = await readBody(req); if (Object.hasOwn(body, 'enabled')) state.providers[key].enabled = Boolean(body.enabled); for (const setting of ['timeoutMs', 'minIntervalMs']) if (Number.isFinite(Number(body[setting]))) state.providers[key][setting] = Math.max(250, Number(body[setting])); writeState(state); return json(res, 200, state.providers[key]); }
+  if (pathname === '/api/recipes/collect' && req.method === 'POST') { const body = await readBody(req); const query = String(body.query || '').trim(); if (!query) return json(res, 400, { error: 'Recherche requise.' }); const collector = new RecipeCollector(); const found = await collector.search(query, state, Math.min(12, Math.max(1, Number(body.limit) || 6))); const known = new Set(state.recipes.map(recipe => recipe.fingerprint || fingerprint(recipe))); const added = found.filter(recipe => !known.has(recipe.fingerprint)); state.recipes.push(...added); writeState(state); return json(res, 200, { found: found.length, added: added.length, recipes: added, providerStatus: state.providerStatus }); }
+  if (pathname === '/api/plan/generate' && req.method === 'POST') { const body = await readBody(req); if (!/^\d{4}-\d{2}-\d{2}$/.test(body.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.endDate)) return json(res, 400, { error: 'Période invalide.' }); const plan = generatePlan(state, body); recalculatePlanShopping(state); writeState(state); return json(res, 200, { plan, shopping: state.shopping }); }
+  const planMealMatch = pathname.match(/^\/api\/plan\/meals\/([^/]+)$/);
+  if (planMealMatch && req.method === 'PATCH') { const meal = state.plan?.meals.find(item => item.id === decodeURIComponent(planMealMatch[1])); if (!meal) return json(res, 404, { error: 'Repas introuvable.' }); const body = await readBody(req); if (!state.recipes.some(item => item.id === body.recipeId)) return json(res, 400, { error: 'Recette invalide.' }); meal.recipeId = body.recipeId; meal.fromLeftover = false; recalculatePlanShopping(state); writeState(state); return json(res, 200, { meal, shopping: state.shopping }); }
   if (pathname === '/api/recipes' && req.method === 'POST') {
     const recipe = recipePayload(await readBody(req));
     if (!recipe.title || !recipe.ingredients.length || !recipe.preparation.length) return json(res, 400, { error: 'Titre, ingrédients et préparation sont requis.' });
