@@ -1,0 +1,11 @@
+services:
+  mealpilot:
+    build: .
+    container_name: mealpilot
+    restart: unless-stopped
+    ports:
+      - "8095:8000"
+    volumes:
+      - /mnt/user/appdata/mealpilot/data:/data
+    environment:
+      - MEALPILOT_DB=/data/mealpilot.db
