@@ -48,3 +48,13 @@ test('recalcule et agrège automatiquement les courses à chaque remplacement', 
   response = await send(base, '/api/menu', 'PUT', { day: 'Mardi', meal: 'dinner', recipeId: recipe.id }); payload = await response.json(); assert.equal(payload.shopping[0].label, '500 g pâtes');
   response = await send(base, '/api/menu', 'PUT', { day: 'Lundi', meal: 'lunch', recipeId: null }); payload = await response.json(); assert.equal(payload.shopping[0].label, '250 g pâtes');
 });
+
+test('supprime les courses à l’unité ou efface toute la liste', async t => {
+  const base = await setup(t);
+  let response = await send(base, '/api/shopping', 'POST', { label: 'Pommes' }); const first = await response.json();
+  await send(base, '/api/shopping', 'POST', { label: 'Lait' });
+  response = await send(base, `/api/shopping/${first.id}`, 'DELETE'); assert.equal(response.status, 204);
+  let state = await (await fetch(`${base}/api/state`)).json(); assert.deepEqual(state.shopping.map(item => item.label), ['Lait']);
+  response = await send(base, '/api/shopping', 'DELETE'); assert.equal(response.status, 204);
+  state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.shopping.length, 0);
+});
