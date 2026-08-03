@@ -1,10 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { jsonLdBlocks, findRecipes, normalizeRecipe, RecipeCollector } = require('../lib/providers');
+const { jsonLdBlocks, findRecipes, normalizeRecipe, RecipeCollector, isRelevant } = require('../lib/providers');
 const { generatePlan, recalculatePlanShopping, FAMILY_PORTIONS } = require('../lib/planner');
 const structured = `<script type="application/ld+json">{"@type":"Recipe","name":"Tarte aux courgettes","recipeYield":"4 portions","totalTime":"PT25M","recipeIngredient":["2 courgettes","200 g farine"],"recipeInstructions":[{"text":"Cuire 20 minutes."}]}</script>`;
 
 test('extrait une recette Recipe JSON-LD avec attribution', () => { const raw = jsonLdBlocks(structured).flatMap(findRecipes)[0]; const recipe = normalizeRecipe(raw, { name: 'Source test' }, 'https://example.test/recette'); assert.equal(recipe.title, 'Tarte aux courgettes'); assert.equal(recipe.totalMinutes, 25); assert.equal(recipe.servings, 4); assert.match(recipe.attribution, /example\.test/); assert.equal(recipe.ingredients.length, 2); assert.ok(recipe.fingerprint); });
+
+test('écarte les recettes hors sujet des résultats de recherche', () => { const salmon = { title: 'Wrap au saumon fumé', category: 'Entrée', ingredients: [{ name: 'saumon' }, { name: 'tortilla' }] }; const chicken = { title: 'Wrap au poulet', category: 'Plat', ingredients: [{ name: 'poulet' }, { name: 'tortilla' }] }; const quiche = { title: 'Quiche lorraine', category: 'Plat', ingredients: [{ name: 'lardons' }] }; assert.equal(isRelevant(salmon, 'wrap au poulet'), false); assert.equal(isRelevant(chicken, 'wrap au poulet'), true); assert.equal(isRelevant(salmon, 'quiche lorraine'), false); assert.equal(isRelevant(quiche, 'quiche lorraine'), true); });
 
 test('limite la collecte, met en cache et déduplique', async () => { let calls = 0; const fetchImpl = async url => { calls++; return { ok: true, text: async () => url.includes('search') ? '<a href="/recette/une">Une</a><a href="/recette/deux">Deux</a>' : structured }; }; const state = { providers: { demo: { name: 'Demo', enabled: true, searchUrl: 'https://demo.test/search?q={query}', hosts: ['demo.test'], minIntervalMs: 0, timeoutMs: 1000 } }, providerStatus: {}, recipeCache: {} }; const recipes = await new RecipeCollector({ fetchImpl }).search('courgette', state, 2); assert.equal(recipes.length, 1); assert.equal(Object.keys(state.recipeCache).length, 2); assert.equal(calls, 3); });
 
