@@ -22,6 +22,15 @@ test('fournit une base de recettes saisonnières structurées', async t => {
   assert.equal(typeof state.recipes[0].ingredients[0].name, 'string'); assert.ok(Object.hasOwn(state.recipes[0].ingredients[0], 'quantity'));
 });
 
+test('ajoute les recettes saisonnières aux données existantes sans doublon', async t => {
+  const base = await setup(t);
+  const dataFile = path.join(process.env.DATA_DIR, 'mealpilot.json');
+  fs.writeFileSync(dataFile, JSON.stringify({ recipes: [{ id: 'legacy', title: 'Recette familiale', ingredients: ['2 carottes'], preparation: ['Cuire'], favorite: true }], menu: {}, shopping: [] }));
+  let state = await (await fetch(`${base}/api/state`)).json();
+  assert.equal(state.recipes.length, 9); assert.equal(state.recipes.find(recipe => recipe.id === 'legacy').personal, true);
+  state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.length, 9);
+});
+
 test('gère le cycle de vie complet des recettes personnelles', async t => {
   const base = await setup(t);
   let response = await send(base, '/api/recipes', 'POST', { title: 'Soupe maison', season: 'Hiver', category: 'Soupe', ingredients: [{ name: 'carottes', quantity: 500, unit: 'g' }], preparation: ['Cuire', 'Mixer'] });

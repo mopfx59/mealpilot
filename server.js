@@ -33,6 +33,8 @@ function parseLegacyIngredient(value) {
 
 function migrateState(state) {
   state.recipes ||= [];
+  const knownSeasonalTitles = new Set(state.recipes.filter(recipe => recipe.personal === false).map(recipe => recipe.title));
+  for (const recipe of seasonalRecipes()) if (!knownSeasonalTitles.has(recipe.title)) state.recipes.push(recipe);
   state.menu ||= Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }]));
   state.shopping ||= [];
   for (const day of DAYS) state.menu[day] ||= { lunch: null, dinner: null };
@@ -46,7 +48,7 @@ function migrateState(state) {
 }
 
 function ensureState() { fs.mkdirSync(DATA_DIR, { recursive: true }); if (!fs.existsSync(DATA_FILE)) writeState(defaultState()); }
-function readState() { ensureState(); return migrateState(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))); }
+function readState() { ensureState(); const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); const before = JSON.stringify(raw); const state = migrateState(raw); if (JSON.stringify(state) !== before) writeState(state); return state; }
 function writeState(state) { fs.mkdirSync(DATA_DIR, { recursive: true }); const temporary = `${DATA_FILE}.tmp`; fs.writeFileSync(temporary, JSON.stringify(state, null, 2)); fs.renameSync(temporary, DATA_FILE); }
 function json(res, status, body) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(body === null ? '' : JSON.stringify(body)); }
 function readBody(req) { return new Promise((resolve, reject) => { let data = ''; req.on('data', chunk => { data += chunk; if (data.length > 1_000_000) reject(new Error('Corps de requête trop volumineux')); }); req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch { reject(new Error('JSON invalide')); } }); req.on('error', reject); }); }
