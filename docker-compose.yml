@@ -4,8 +4,9 @@ services:
     container_name: mealpilot
     restart: unless-stopped
     ports:
-      - "8095:8000"
+      - "8095:3000"
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
     volumes:
       - /mnt/user/appdata/mealpilot/data:/data
-    environment:
-      - MEALPILOT_DB=/data/mealpilot.db
