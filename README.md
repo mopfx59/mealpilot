@@ -5,13 +5,17 @@ MealPilot est un planificateur de repas familial, responsive et auto-hébergé. 
 ## Fonctionnalités
 
 - planning hebdomadaire midi/soir cliquable ;
-- recettes détaillées avec ingrédients et étapes de préparation ;
-- favoris et recherche ;
-- ajout manuel de recettes ;
-- génération de la liste de courses depuis le menu ;
+- 8 recettes de saison (printemps, été, automne et hiver) ;
+- recettes personnelles ajoutables, modifiables et supprimables ;
+- ingrédients structurés avec quantité et unité, préparation détaillée ;
+- favoris, recherche et filtres par saison et catégorie ;
+- remplacement d'un repas directement depuis le planning ;
+- recalcul et agrégation automatiques de la liste de courses ;
 - ajout, cochage, modification et suppression d'articles ;
 - stockage JSON persistant et écriture atomique ;
-- interface adaptée aux ordinateurs et téléphones Android.
+- interface adaptée aux ordinateurs et téléphones Android, avec navigation mobile basse.
+
+Les anciennes données du Sprint 1 sont migrées automatiquement au premier chargement. Les recettes et articles personnels existants sont conservés.
 
 ## Déploiement Unraid
 

@@ -4,23 +4,38 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-test('le serveur expose son état et permet un parcours fonctionnel', async t => {
+async function setup(t) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mealpilot-'));
   process.env.DATA_DIR = dataDir;
   const modulePath = require.resolve('../server'); delete require.cache[modulePath];
   const { server } = require('../server');
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => { server.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
-  const base = `http://127.0.0.1:${server.address().port}`;
+  return `http://127.0.0.1:${server.address().port}`;
+}
+const send = (base, url, method, body) => fetch(`${base}${url}`, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
 
-  let response = await fetch(`${base}/api/health`); assert.equal(response.status, 200);
-  response = await fetch(`${base}/api/state`); const initial = await response.json(); assert.equal(initial.recipes.length, 3); assert.equal(Object.keys(initial.menu).length, 7);
+test('fournit une base de recettes saisonnières structurées', async t => {
+  const base = await setup(t); const response = await fetch(`${base}/api/state`); const state = await response.json();
+  assert.equal(response.status, 200); assert.equal(state.recipes.length, 8); assert.equal(Object.keys(state.menu).length, 7);
+  assert.deepEqual(new Set(state.recipes.map(recipe => recipe.season)), new Set(['Printemps', 'Été', 'Automne', 'Hiver']));
+  assert.equal(typeof state.recipes[0].ingredients[0].name, 'string'); assert.ok(Object.hasOwn(state.recipes[0].ingredients[0], 'quantity'));
+});
 
-  response = await fetch(`${base}/api/recipes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Soupe maison', ingredients: ['Carottes'], preparation: ['Mixer'] }) });
-  assert.equal(response.status, 201); const recipe = await response.json();
-  response = await fetch(`${base}/api/menu`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ day: 'Lundi', meal: 'lunch', recipeId: recipe.id }) }); assert.equal(response.status, 200);
-  response = await fetch(`${base}/api/shopping/from-menu`, { method: 'POST' }); const shopping = await response.json(); assert.deepEqual(shopping.map(item => item.label), ['Carottes']);
-  const itemId = shopping[0].id;
-  response = await fetch(`${base}/api/shopping/${itemId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label: 'Carottes bio' }) });
-  assert.equal(response.status, 200); assert.equal((await response.json()).label, 'Carottes bio');
+test('gère le cycle de vie complet des recettes personnelles', async t => {
+  const base = await setup(t);
+  let response = await send(base, '/api/recipes', 'POST', { title: 'Soupe maison', season: 'Hiver', category: 'Soupe', ingredients: [{ name: 'carottes', quantity: 500, unit: 'g' }], preparation: ['Cuire', 'Mixer'] });
+  assert.equal(response.status, 201); const recipe = await response.json(); assert.equal(recipe.personal, true);
+  response = await send(base, `/api/recipes/${recipe.id}`, 'PUT', { ...recipe, title: 'Velouté maison', ingredients: [{ name: 'carottes', quantity: 600, unit: 'g' }] });
+  assert.equal(response.status, 200); assert.equal((await response.json()).title, 'Velouté maison');
+  response = await send(base, `/api/recipes/${recipe.id}/favorite`, 'PATCH'); assert.equal((await response.json()).favorite, true);
+  response = await send(base, `/api/recipes/${recipe.id}`, 'DELETE'); assert.equal(response.status, 204);
+});
+
+test('recalcule et agrège automatiquement les courses à chaque remplacement', async t => {
+  const base = await setup(t);
+  let response = await send(base, '/api/recipes', 'POST', { title: 'Pâtes test', ingredients: [{ name: 'pâtes', quantity: 250, unit: 'g' }], preparation: ['Cuire'] }); const recipe = await response.json();
+  response = await send(base, '/api/menu', 'PUT', { day: 'Lundi', meal: 'lunch', recipeId: recipe.id }); let payload = await response.json(); assert.equal(payload.shopping[0].label, '250 g pâtes');
+  response = await send(base, '/api/menu', 'PUT', { day: 'Mardi', meal: 'dinner', recipeId: recipe.id }); payload = await response.json(); assert.equal(payload.shopping[0].label, '500 g pâtes');
+  response = await send(base, '/api/menu', 'PUT', { day: 'Lundi', meal: 'lunch', recipeId: null }); payload = await response.json(); assert.equal(payload.shopping[0].label, '250 g pâtes');
 });
