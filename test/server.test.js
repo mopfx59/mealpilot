@@ -58,3 +58,13 @@ test('supprime les courses à l’unité ou efface toute la liste', async t => {
   response = await send(base, '/api/shopping', 'DELETE'); assert.equal(response.status, 204);
   state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.shopping.length, 0);
 });
+
+test('importe une sélection puis permet de supprimer toute recette définitivement', async t => {
+  const base = await setup(t);
+  const candidate = { title: 'Recette choisie', description: 'Selon mes goûts', source: 'Source test', sourceUrl: 'https://example.test/recette', ingredients: [{ name: 'courgettes', quantity: 2, unit: 'pièces' }], preparation: ['Cuire'], season: 'Été', category: 'Plat' };
+  let response = await send(base, '/api/recipes/import', 'POST', { recipes: [candidate] }); assert.equal(response.status, 201); const imported = (await response.json()).recipes[0];
+  response = await send(base, `/api/recipes/${imported.id}`, 'DELETE'); assert.equal(response.status, 204);
+  let state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.some(recipe => recipe.title === candidate.title), false);
+  const seasonal = state.recipes.find(recipe => recipe.personal === false); response = await send(base, `/api/recipes/${seasonal.id}`, 'DELETE'); assert.equal(response.status, 204);
+  state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.some(recipe => recipe.title === seasonal.title), false);
+});
