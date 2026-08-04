@@ -4,6 +4,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DEFAULT_PROVIDERS, RecipeCollector, fingerprint } = require('./lib/providers');
 const { generatePlan, recalculatePlanShopping } = require('./lib/planner');
+const { googleConfig, authorizationUrl, tokenRequest, fetchCalendars, fetchEvents, fetchZoneBHolidays, createOAuthState } = require('./lib/calendar');
 
 const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -24,7 +25,7 @@ const seasonalRecipes = () => [
   ['Curry de pois chiches', 'Hiver', 'Végétarien', 'Épicé juste ce qu’il faut et prêt rapidement.', [ingredient('pois chiches', 500, 'g'), ingredient('lait de coco', 400, 'ml'), ingredient('tomates concassées', 400, 'g'), ingredient('riz', 300, 'g')], ['Faire revenir les épices.', 'Ajouter pois chiches, tomates et lait de coco.', 'Mijoter 20 minutes et servir avec le riz.']]
 ].map(([title, season, category, description, ingredients, preparation]) => ({ id: randomUUID(), title, season, category, description, ingredients, preparation, favorite: false, personal: false }));
 
-const defaultState = () => ({ recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), plan: null, shopping: [], providers: structuredClone(DEFAULT_PROVIDERS), providerStatus: {}, recipeCache: {} });
+const defaultState = () => ({ recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), plan: null, shopping: [], providers: structuredClone(DEFAULT_PROVIDERS), providerStatus: {}, recipeCache: {}, calendar: { connected: false, calendarId: 'primary', calendarName: 'Agenda principal', events: [], schoolHolidays: [], lastSyncAt: null } });
 
 function parseLegacyIngredient(value) {
   if (value && typeof value === 'object') return { name: String(value.name || '').trim(), quantity: value.quantity ?? '', unit: String(value.unit || '').trim() };
@@ -41,6 +42,7 @@ function migrateState(state) {
   state.menu ||= Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }]));
   state.shopping ||= [];
   state.plan ||= null; state.providers ||= {}; for (const [key, provider] of Object.entries(DEFAULT_PROVIDERS)) state.providers[key] ||= structuredClone(provider); state.providerStatus ||= {}; state.recipeCache ||= {};
+  state.calendar ||= {}; Object.assign(state.calendar, { connected: Boolean(state.calendar.refreshToken), calendarId: state.calendar.calendarId || 'primary', calendarName: state.calendar.calendarName || 'Agenda principal', events: state.calendar.events || [], schoolHolidays: state.calendar.schoolHolidays || [], lastSyncAt: state.calendar.lastSyncAt || null });
   for (const day of DAYS) state.menu[day] ||= { lunch: null, dinner: null };
   for (const recipe of state.recipes) {
     recipe.ingredients = (recipe.ingredients || []).map(parseLegacyIngredient).filter(item => item.name);
@@ -60,6 +62,7 @@ function readBody(req) { return new Promise((resolve, reject) => { let data = ''
 function cleanList(value) { return Array.isArray(value) ? value.map(item => String(item).trim()).filter(Boolean) : []; }
 function cleanIngredients(value) { return Array.isArray(value) ? value.map(parseLegacyIngredient).filter(item => item.name) : []; }
 function ingredientLabel(item) { return [item.quantity, item.unit, item.name].filter(value => value !== '' && value !== null && value !== undefined).join(' '); }
+function publicState(state) { const copy = structuredClone(state); if (copy.calendar) { delete copy.calendar.accessToken; delete copy.calendar.refreshToken; delete copy.calendar.oauthState; delete copy.calendar.expiresAt; copy.calendar.configured = Boolean(googleConfig().clientId && googleConfig().redirectUri); } return copy; }
 
 function recalculateShopping(state) {
   const manual = state.shopping.filter(item => item.manual);
@@ -80,10 +83,16 @@ function recipePayload(body, existing = {}) {
   return { ...existing, title: String(body.title || '').trim(), description: String(body.description || '').trim(), season: SEASONS.includes(body.season) ? body.season : 'Toute saison', category: String(body.category || 'Autre').trim(), ingredients: cleanIngredients(body.ingredients), preparation: cleanList(body.preparation), personal: existing.personal ?? true, favorite: existing.favorite ?? false };
 }
 
-async function api(req, res, pathname) {
+async function api(req, res, pathname, url) {
   if (pathname === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok' });
-  if (pathname === '/api/state' && req.method === 'GET') return json(res, 200, readState());
+  if (pathname === '/api/state' && req.method === 'GET') return json(res, 200, publicState(readState()));
   const state = readState();
+  if (pathname === '/api/calendar/auth' && req.method === 'GET') { state.calendar.oauthState = createOAuthState(); writeState(state); return json(res, 200, { url: authorizationUrl(state.calendar.oauthState) }); }
+  if (pathname === '/api/calendar/callback' && req.method === 'GET') { if (!url.searchParams.get('code') || url.searchParams.get('state') !== state.calendar.oauthState) return json(res, 400, { error: 'Retour OAuth invalide.' }); const token = await tokenRequest({ code: url.searchParams.get('code'), redirect_uri: googleConfig().redirectUri, grant_type: 'authorization_code' }); state.calendar.accessToken = token.access_token; state.calendar.refreshToken = token.refresh_token || state.calendar.refreshToken; state.calendar.expiresAt = Date.now() + Number(token.expires_in || 3600) * 1000; state.calendar.connected = true; delete state.calendar.oauthState; writeState(state); res.writeHead(302, { Location: '/#calendar' }); return res.end(); }
+  if (pathname === '/api/calendar/calendars' && req.method === 'GET') return json(res, 200, await fetchCalendars(state.calendar));
+  if (pathname === '/api/calendar' && req.method === 'PATCH') { const body = await readBody(req); state.calendar.calendarId = String(body.calendarId || 'primary'); state.calendar.calendarName = String(body.calendarName || 'Agenda principal'); writeState(state); return json(res, 200, publicState(state).calendar); }
+  if (pathname === '/api/calendar/sync' && req.method === 'POST') { const body = await readBody(req); const startDate = /^\d{4}-\d{2}-\d{2}$/.test(body.startDate) ? body.startDate : new Date().toISOString().slice(0, 10); const defaultEnd = new Date(`${startDate}T12:00:00`); defaultEnd.setDate(defaultEnd.getDate() + 61); const endDate = /^\d{4}-\d{2}-\d{2}$/.test(body.endDate) ? body.endDate : defaultEnd.toISOString().slice(0, 10); const [events, schoolHolidays] = await Promise.all([fetchEvents(state.calendar, startDate, endDate), fetchZoneBHolidays(startDate, endDate)]); state.calendar.events = events; state.calendar.schoolHolidays = schoolHolidays; state.calendar.lastSyncAt = new Date().toISOString(); writeState(state); return json(res, 200, publicState(state).calendar); }
+  if (pathname === '/api/calendar/disconnect' && req.method === 'DELETE') { state.calendar = { connected: false, calendarId: 'primary', calendarName: 'Agenda principal', events: [], schoolHolidays: state.calendar.schoolHolidays || [], lastSyncAt: null }; writeState(state); return json(res, 204, null); }
   if (pathname === '/api/providers' && req.method === 'GET') return json(res, 200, { providers: state.providers, status: state.providerStatus });
   const providerMatch = pathname.match(/^\/api\/providers\/([^/]+)$/);
   if (providerMatch && req.method === 'PATCH') { const key = decodeURIComponent(providerMatch[1]); if (!state.providers[key]) return json(res, 404, { error: 'Fournisseur introuvable.' }); const body = await readBody(req); if (Object.hasOwn(body, 'enabled')) state.providers[key].enabled = Boolean(body.enabled); for (const setting of ['timeoutMs', 'minIntervalMs']) if (Number.isFinite(Number(body[setting]))) state.providers[key][setting] = Math.max(250, Number(body[setting])); writeState(state); return json(res, 200, state.providers[key]); }
@@ -113,6 +122,6 @@ async function api(req, res, pathname) {
 }
 
 function staticFile(res, pathname) { const requested = pathname === '/' ? 'index.html' : pathname.slice(1); const file = path.resolve(PUBLIC_DIR, requested); if (!file.startsWith(`${path.resolve(PUBLIC_DIR)}${path.sep}`) && file !== path.join(PUBLIC_DIR, 'index.html')) return json(res, 403, { error: 'Accès refusé.' }); if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return json(res, 404, { error: 'Fichier introuvable.' }); const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' }; res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' }); fs.createReadStream(file).pipe(res); }
-const server = http.createServer(async (req, res) => { const pathname = new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname; try { if (pathname.startsWith('/api/')) await api(req, res, pathname); else staticFile(res, pathname); } catch (error) { console.error(error); json(res, 500, { error: error.message || 'Erreur interne.' }); } });
+const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`); const pathname = url.pathname; try { if (pathname.startsWith('/api/')) await api(req, res, pathname, url); else staticFile(res, pathname); } catch (error) { console.error(error); json(res, 500, { error: error.message || 'Erreur interne.' }); } });
 if (require.main === module) server.listen(PORT, '0.0.0.0', () => console.log(`MealPilot disponible sur le port ${PORT}`));
 module.exports = { server, defaultState, DAYS, recalculateShopping };

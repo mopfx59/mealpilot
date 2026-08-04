@@ -2,6 +2,22 @@
 
 MealPilot est un planificateur de repas familial, responsive et auto-hébergé. Il permet d'organiser les repas du midi et du soir, de conserver ses recettes et de générer une liste de courses cochable.
 
+## Sprint 4 — Agenda et présences
+
+MealPilot peut maintenant lire un agenda Google (OAuth 2.0, accès en lecture seule), reconnaître les événements `Matin`, `R Matin`, `Après-midi`, `R Après-midi`, `Nuit`, `Congés` et `Centre`, puis calculer les portions selon les personnes présentes. La cantine est appliquée les lundi, mardi, jeudi et vendredi en période scolaire ; les vacances de la zone B sont récupérées depuis l’API officielle du ministère de l’Éducation nationale.
+
+L’éditeur de recettes utilise désormais des lignes structurées Quantité / Unité / Ingrédient, avec unités proposées, autocomplétion à partir du carnet, ajout et suppression de lignes.
+
+Pour activer Google Calendar, créer un client OAuth « application Web » dans Google Cloud, activer l’API Google Calendar et définir dans l’environnement du conteneur :
+
+```text
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=http://ADRESSE_DU_SERVEUR:8095/api/calendar/callback
+```
+
+La même URI doit être enregistrée comme URI de redirection autorisée dans Google Cloud. Les jetons, événements synchronisés et réglages sont conservés dans le volume persistant existant ; ils ne sont jamais renvoyés au navigateur.
+
 ## Sprint 3 — Collecte raisonnée et menus intelligents
 
 MealPilot recherche automatiquement les recettes nécessaires, sans demander d'URL à l'utilisateur. Le collecteur utilise en priorité les blocs structurés `Recipe` en JSON-LD publiés par les pages et conserve toujours le nom de la source et l'URL d'origine.

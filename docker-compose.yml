@@ -8,5 +8,8 @@ services:
     environment:
       NODE_ENV: production
       DATA_DIR: /data
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
     volumes:
       - /mnt/user/appdata/mealpilot/data:/data
