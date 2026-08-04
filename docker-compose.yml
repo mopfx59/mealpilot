@@ -1,0 +1,12 @@
+services:
+  mealpilot:
+    build: .
+    container_name: mealpilot
+    restart: unless-stopped
+    ports:
+      - "8095:3000"
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
+    volumes:
+      - /mnt/user/appdata/mealpilot/data:/data
