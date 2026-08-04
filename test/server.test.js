@@ -63,8 +63,9 @@ test('importe une sélection puis permet de supprimer toute recette définitivem
   const base = await setup(t);
   const candidate = { title: 'Recette choisie', description: 'Selon mes goûts', source: 'Source test', sourceUrl: 'https://example.test/recette', ingredients: [{ name: 'courgettes', quantity: 2, unit: 'pièces' }], preparation: ['Cuire'], season: 'Été', category: 'Plat' };
   let response = await send(base, '/api/recipes/import', 'POST', { recipes: [candidate] }); assert.equal(response.status, 201); const imported = (await response.json()).recipes[0];
+  let state = await (await fetch(`${base}/api/state`)).json(); state.plan = { startDate: '2026-08-04', endDate: '2026-08-04', meals: [{ id: 'meal-1', date: '2026-08-04', meal: 'lunch', recipeId: imported.id, servings: 3, fromLeftover: false }] }; fs.writeFileSync(path.join(process.env.DATA_DIR, 'mealpilot.json'), JSON.stringify(state));
   response = await send(base, `/api/recipes/${imported.id}`, 'DELETE'); assert.equal(response.status, 204);
-  let state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.some(recipe => recipe.title === candidate.title), false);
+  state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.some(recipe => recipe.title === candidate.title), false); assert.equal(state.plan.meals[0].recipeId, null);
   const seasonal = state.recipes.find(recipe => recipe.personal === false); response = await send(base, `/api/recipes/${seasonal.id}`, 'DELETE'); assert.equal(response.status, 204);
   state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.some(recipe => recipe.title === seasonal.title), false);
 });
