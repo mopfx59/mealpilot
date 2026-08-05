@@ -70,3 +70,10 @@ test('importe une sélection puis permet de supprimer toute recette définitivem
   const seasonal = state.recipes.find(recipe => recipe.personal === false); response = await send(base, `/api/recipes/${seasonal.id}`, 'DELETE'); assert.equal(response.status, 204);
   state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.some(recipe => recipe.title === seasonal.title), false);
 });
+
+test('conserve et met à jour le statut d’un reste planifié', async t => {
+  const base = await setup(t);
+  const response = await send(base, '/api/plan/generate', 'POST', { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'], busyDates: [], lunchMaxMinutes: 60, dinnerMaxMinutes: 45, busyMaxMinutes: 30 });
+  assert.equal(response.status, 200); let saved = await (await fetch(`${base}/api/state`)).json(); assert.ok(saved.leftovers.length > 0); const leftover = saved.leftovers[0]; assert.ok(saved.recipes.some(recipe => recipe.id === leftover.recipeId)); assert.ok(leftover.initialServings > 0); assert.ok(leftover.sourceDate);
+  const changed = await send(base, `/api/leftovers/${leftover.id}`, 'PATCH', { status: 'discarded' }); assert.equal(changed.status, 200); saved = await (await fetch(`${base}/api/state`)).json(); assert.equal(saved.leftovers[0].status, 'discarded'); assert.equal(saved.leftovers[0].remainingServings, 0);
+});

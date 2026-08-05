@@ -22,18 +22,23 @@ La même URI doit être enregistrée comme URI de redirection autorisée dans Go
 
 MealPilot recherche automatiquement les recettes nécessaires, sans demander d'URL à l'utilisateur. Le collecteur utilise en priorité les blocs structurés `Recipe` en JSON-LD publiés par les pages et conserve toujours le nom de la source et l'URL d'origine.
 
-Fournisseurs configurés :
+Fournisseurs configurés et testés séparément :
 
 - Marmiton, 750g, CuisineAZ et TheMealDB activés par défaut ;
 - TheMealDB sert de source alternative structurée via son API publique lorsque les recherches HTML changent ou sont bloquées ;
 - activation/désactivation indépendante depuis l'interface ou `PATCH /api/providers/:id` ;
-- délai de 8 secondes, intervalle minimal de 1,8 seconde et cache local de 7 jours ;
-- pause automatique de 30 minutes après trois échecs consécutifs ;
+- délai de 8 secondes, intervalle minimal de 1,8 seconde et cache local de 7 jours pour les recherches, pages, API et règles d’accès ;
+- lecture de `robots.txt` avant la collecte HTML et refus des chemins interdits ;
+- désactivation automatique persistante après trois échecs consécutifs, avec réactivation manuelle possible ;
 - déduplication par empreinte du titre et des ingrédients.
 
 La collecte est volontairement limitée à 12 recettes par demande (6 depuis l'interface). Elle ne constitue pas une copie massive des sites. Les fournisseurs peuvent modifier leur HTML, bloquer l'automatisation ou imposer leurs propres conditions : une source peut donc devenir temporairement indisponible. L'utilisation doit rester privée et respecter les conditions des sites.
 
-Le générateur permet une période libre de 1 à 62 jours, crée les repas midi/soir, favorise les recettes de saison, les recettes de moins de 30 minutes le soir, limite les répétitions et réemploie les restes. Les dates où Madame est seule utilisent en priorité un reste. Les portions familiales valent 3 portions adultes équivalentes : 2 adultes + enfant de 6 ans (0,6) + enfant de 3 ans (0,4). Un repas peut être remplacé seul et les courses sont recalculées immédiatement.
+Le générateur permet une période libre de 1 à 62 jours, crée les repas midi/soir, favorise les recettes de saison et limite les répétitions. Les durées maximales sont réglables pour le midi, le soir et les journées chargées. Les dates chargées et les retours de nuit favorisent réellement les recettes compatibles avec le temps disponible.
+
+Chaque recette indique si elle supporte la conservation et le réchauffage. MealPilot calcule alors des portions supplémentaires, enregistre le reste avec sa recette d’origine, sa date et sa quantité, puis le réutilise en priorité lorsque Madame mange seule. L’écran **Restes** permet de le déclarer consommé, conservé ou jeté. Les ingrédients d’un repas servi depuis un reste ne sont pas ajoutés une seconde fois aux courses.
+
+Les portions familiales valent 3 portions adultes équivalentes : 2 adultes + enfant de 6 ans (0,6) + enfant de 3 ans (0,4). Un repas peut être remplacé seul et les courses sont recalculées immédiatement.
 
 ## Fonctionnalités précédentes
 
@@ -50,7 +55,7 @@ Le générateur permet une période libre de 1 à 62 jours, crée les repas midi
 
 Les anciennes données du Sprint 1 sont migrées automatiquement au premier chargement. Les recettes et articles personnels existants sont conservés.
 
-Les réglages fournisseurs, leur état de santé, le cache, les recettes collectées, le menu et les courses sont stockés dans le même fichier persistant `mealpilot.json`.
+Les réglages fournisseurs, leur état de santé, le cache, les recettes collectées, le menu, les restes et les courses sont stockés dans le même fichier persistant `mealpilot.json`.
 
 ## Déploiement Unraid
 
