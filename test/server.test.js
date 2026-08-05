@@ -76,3 +76,10 @@ test('conserve le lien interne d’un reste planifié sans action manuelle', asy
   const response = await send(base, '/api/plan/generate', 'POST', { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'], expressDates: [] });
   assert.equal(response.status, 200); const saved = await (await fetch(`${base}/api/state`)).json(); assert.ok(saved.leftovers.length > 0); const leftover = saved.leftovers[0]; assert.ok(saved.recipes.some(recipe => recipe.id === leftover.recipeId)); assert.ok(leftover.initialServings > 0); assert.ok(leftover.sourceDate); assert.ok(leftover.targetDate); assert.ok(saved.plan.meals.some(meal => meal.fromLeftover && meal.leftoverSourceDate));
 });
+
+test('valide une copie figée du menu avec les proportions exactes', async t => {
+  const base = await setup(t);
+  const generated = await send(base, '/api/plan/generate', 'POST', { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'], expressDates: [] }); assert.equal(generated.status, 200);
+  const response = await send(base, '/api/plan/validate', 'POST'); const validated = await response.json(); assert.equal(response.status, 200); assert.equal(validated.startDate, '2026-08-03'); assert.equal(validated.endDate, '2026-08-04'); assert.ok(validated.validatedAt); assert.ok(validated.meals.every(meal => meal.recipe?.title && meal.scaledIngredients?.length && meal.exactServings > 0));
+  const saved = await (await fetch(`${base}/api/state`)).json(); assert.deepEqual(saved.validatedPlan, validated);
+});

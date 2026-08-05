@@ -38,6 +38,8 @@ Le générateur permet une période libre de 1 à 62 jours, crée les repas midi
 
 Chaque recette indique si elle supporte la conservation et le réchauffage. MealPilot calcule les portions supplémentaires d’après les présences réelles au repas où le reste sera consommé : travail de Papa, présence de Madame, école, cantine, centre et vacances scolaires. Il prépare uniquement la quantité nécessaire et relie automatiquement les deux repas. Le menu indique directement la quantité préparée et le jour prévu, puis l’origine du reste lorsqu’il est servi. Il n’existe plus d’écran ni d’action manuelle consacrés aux restes. Ce lien interne évite d’ajouter une seconde fois leurs ingrédients aux courses.
 
+Le bouton **Valider le menu** enregistre une copie figée de la période dans l’onglet **Menu validé**. Cette copie reste indépendante des modifications ultérieures du brouillon. Un clic sur un repas validé ouvre sa recette en lecture seule avec les ingrédients recalculés et enregistrés selon le nombre exact de portions préparées pour ce repas.
+
 Les portions familiales valent 3 portions adultes équivalentes : 2 adultes + enfant de 6 ans (0,6) + enfant de 3 ans (0,4). Un repas peut être remplacé seul et les courses sont recalculées immédiatement.
 
 ## Fonctionnalités précédentes
