@@ -60,6 +60,18 @@ test('applique le temps disponible et les journées chargées', () => {
   assert.ok(plan.meals.every(meal => meal.recipeId === 'quick'));
 });
 
+test('exclut une recette d’hiver d’un menu généré en été', () => {
+  const recipes = [{ id: 'carbonade', title: 'Carbonade flamande', season: 'Hiver', totalMinutes: 150, servings: 3, leftoverFriendly: true, ingredients: [{ name: 'bœuf', quantity: 500, unit: 'g' }] }, { id: 'summer', title: 'Ratatouille', season: 'Été', totalMinutes: 45, servings: 3, leftoverFriendly: true, ingredients: [{ name: 'courgette', quantity: 2, unit: 'pièces' }] }];
+  const state = { recipes, leftovers: [], shopping: [] }; const plan = generatePlan(state, { startDate: '2026-08-10', endDate: '2026-08-10' });
+  assert.ok(plan.meals.every(meal => meal.recipeId !== 'carbonade')); assert.ok(plan.meals.every(meal => meal.recipeId === 'summer'));
+});
+
+test('conserve les recettes Toute saison parmi les choix compatibles', () => {
+  const recipes = [{ id: 'winter', title: 'Potée', season: 'Hiver', totalMinutes: 20, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'chou', quantity: 1 }] }, { id: 'all', title: 'Omelette', season: 'Toute saison', totalMinutes: 15, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'œufs', quantity: 6 }] }];
+  const state = { recipes, leftovers: [], shopping: [] }; const plan = generatePlan(state, { startDate: '2026-08-10', endDate: '2026-08-10' });
+  assert.ok(plan.meals.every(meal => meal.recipeId === 'all'));
+});
+
 test('planifie, quantifie et trace les restes puis évite un second achat', () => {
   const recipes = [{ id: 'summer', title: 'Gratin été', season: 'Été', totalMinutes: 20, servings: 4, leftoverFriendly: true, ingredients: [{ name: 'tomates', quantity: 4, unit: 'pièces' }] }];
   const state = { recipes, shopping: [], leftovers: [] }; const plan = generatePlan(state, { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'] });

@@ -34,7 +34,7 @@ Fournisseurs configurés et testés séparément :
 
 La collecte est volontairement limitée à 12 recettes par demande (6 depuis l'interface). Elle ne constitue pas une copie massive des sites. Les fournisseurs peuvent modifier leur HTML, bloquer l'automatisation ou imposer leurs propres conditions : une source peut donc devenir temporairement indisponible. L'utilisation doit rester privée et respecter les conditions des sites.
 
-Le générateur permet une période libre de 1 à 62 jours, crée les repas midi/soir, favorise les recettes de saison et limite les répétitions. Les durées maximales sont réglables pour le midi, le soir et les journées chargées. Les dates chargées et les retours de nuit favorisent réellement les recettes compatibles avec le temps disponible.
+Le générateur permet une période libre de 1 à 62 jours, crée les repas midi/soir et limite les répétitions. Il exclut les recettes attribuées à une autre saison ; seules la saison de la date et les recettes `Toute saison` sont normalement admissibles. Un repli sur l’ensemble du carnet n’est utilisé que lorsqu’aucune recette compatible n’existe. Les durées maximales sont réglables pour le midi, le soir et les journées chargées. Les dates chargées et les retours de nuit favorisent réellement les recettes compatibles avec le temps disponible.
 
 Chaque recette indique si elle supporte la conservation et le réchauffage. MealPilot calcule alors des portions supplémentaires, enregistre le reste avec sa recette d’origine, sa date et sa quantité, puis le réutilise en priorité lorsque Madame mange seule. L’écran **Restes** permet de le déclarer consommé, conservé ou jeté. Les ingrédients d’un repas servi depuis un reste ne sont pas ajoutés une seconde fois aux courses.
 
