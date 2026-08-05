@@ -104,7 +104,15 @@ test('accepte une recette sur plusieurs saisons sans l’ouvrir aux autres', () 
 test('planifie, quantifie et trace les restes puis évite un second achat', () => {
   const recipes = [{ id: 'summer', title: 'Gratin été', season: 'Été', totalMinutes: 20, servings: 4, leftoverFriendly: true, ingredients: [{ name: 'tomates', quantity: 4, unit: 'pièces' }] }];
   const state = { recipes, shopping: [], leftovers: [] }; const plan = generatePlan(state, { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'] });
-  assert.equal(plan.meals.length, 4); assert.equal(plan.meals[0].servings, FAMILY_PORTIONS); assert.ok(plan.meals[0].cookedServings > plan.meals[0].servings); assert.equal(plan.meals[2].servings, 1); assert.equal(plan.meals[2].fromLeftover, true); assert.equal(state.leftovers.length, 1); assert.equal(state.leftovers[0].sourceMealId, plan.meals[0].id); assert.ok(state.leftovers[0].initialServings > 0); recalculatePlanShopping(state); assert.equal(state.shopping.length, 1);
+  assert.equal(plan.meals.length, 4); assert.equal(plan.meals[0].servings, FAMILY_PORTIONS); assert.equal(plan.meals[0].cookedServings, FAMILY_PORTIONS + 1); assert.equal(plan.meals[2].servings, 1); assert.equal(plan.meals[2].fromLeftover, true); assert.equal(state.leftovers.length, 1); assert.equal(state.leftovers[0].sourceMealId, plan.meals[0].id); assert.equal(state.leftovers[0].initialServings, 1); assert.equal(state.leftovers[0].remainingServings, 0); recalculatePlanShopping(state); assert.equal(state.shopping.length, 1);
+});
+
+test('calcule les restes selon les présences réelles du repas suivant', () => {
+  const recipes = [{ id: 'ratatouille', title: 'Ratatouille', seasons: ['Été'], meals: ['lunch'], servings: 3, leftoverFriendly: true, ingredients: [{ name: 'courgettes', quantity: 2 }] }, { id: 'dinner', title: 'Salade', seasons: ['Été'], meals: ['dinner'], servings: 3, leftoverFriendly: false, ingredients: [{ name: 'salade', quantity: 1 }] }];
+  const calendar = { events: [{ date: '2026-08-31', type: 'morning', title: 'Matin' }, { date: '2026-09-01', type: 'morning', title: 'Matin' }], schoolHolidays: [{ start: '2026-07-03', end: '2026-08-31' }] };
+  const state = { recipes, calendar, leftovers: [], shopping: [] }; const plan = generatePlan(state, { startDate: '2026-08-31', endDate: '2026-09-01' });
+  const mondayLunch = plan.meals.find(meal => meal.date === '2026-08-31' && meal.meal === 'lunch'); const tuesdayLunch = plan.meals.find(meal => meal.date === '2026-09-01' && meal.meal === 'lunch');
+  assert.equal(mondayLunch.servings, 2); assert.equal(mondayLunch.cookedServings, 3); assert.equal(tuesdayLunch.servings, 1); assert.equal(tuesdayLunch.fromLeftover, true); assert.equal(state.leftovers[0].initialServings, 1); assert.equal(state.leftovers[0].remainingServings, 0);
 });
 
 test('réutilise en priorité un reste conservé lors d’une nouvelle planification', () => {
