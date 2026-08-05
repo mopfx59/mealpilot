@@ -72,6 +72,12 @@ test('conserve les recettes Toute saison parmi les choix compatibles', () => {
   assert.ok(plan.meals.every(meal => meal.recipeId === 'all'));
 });
 
+test('accepte une recette sur plusieurs saisons sans l’ouvrir aux autres', () => {
+  const recipes = [{ id: 'carbonade', title: 'Carbonade flamande', season: 'Automne', seasons: ['Automne', 'Hiver'], totalMinutes: 150, servings: 3, leftoverFriendly: true, ingredients: [{ name: 'bœuf', quantity: 500, unit: 'g' }] }, { id: 'summer', title: 'Salade', season: 'Été', seasons: ['Printemps', 'Été'], totalMinutes: 15, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'tomate', quantity: 4 }] }];
+  const autumn = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-10-10', endDate: '2026-10-10' }); const summer = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-08-10', endDate: '2026-08-10' });
+  assert.ok(autumn.meals.every(meal => meal.recipeId === 'carbonade')); assert.ok(summer.meals.every(meal => meal.recipeId === 'summer'));
+});
+
 test('planifie, quantifie et trace les restes puis évite un second achat', () => {
   const recipes = [{ id: 'summer', title: 'Gratin été', season: 'Été', totalMinutes: 20, servings: 4, leftoverFriendly: true, ingredients: [{ name: 'tomates', quantity: 4, unit: 'pièces' }] }];
   const state = { recipes, shopping: [], leftovers: [] }; const plan = generatePlan(state, { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'] });
