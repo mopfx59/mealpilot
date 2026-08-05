@@ -9,6 +9,7 @@ test('reconnaît les libellés de travail, congés et centre', () => {
   assert.equal(classifyEvent('R Après-midi'), 'return-afternoon');
   assert.equal(classifyEvent('Nuit'), 'night');
   assert.equal(classifyEvent('Congés'), 'leave');
+  assert.equal(classifyEvent('Repos'), 'rest');
   assert.equal(classifyEvent('Centre de loisirs'), 'centre');
   assert.equal(classifyEvent('Rendez-vous médecin'), 'appointment');
   assert.equal(classifyEvent('Soirée anniversaire'), 'busy-evening');
@@ -22,7 +23,7 @@ test('déplie les événements Google sur leurs journées', () => {
 
 test('applique cantine, vacances, centre et travail aux portions', () => {
   const calendar = { events: [{ date: '2026-09-07', title: 'Matin', type: 'morning' }], schoolHolidays: [] };
-  assert.deepEqual(attendanceFor('2026-09-07', 'lunch', calendar), { servings: 1, papaPresent: false, madamePresent: true, childrenPresent: false, canteen: true, centre: false, afterNight: false, busy: false, busyReason: null, schoolHoliday: false, events: ['Matin'] });
+  assert.deepEqual(attendanceFor('2026-09-07', 'lunch', calendar), { servings: 1, papaPresent: false, madamePresent: true, childrenPresent: false, canteen: true, centre: false, afterNight: false, busy: false, busyReason: null, workShift: 'morning', shiftChanged: false, mealPreference: 'transportable', schoolHoliday: false, events: ['Matin'] });
   calendar.schoolHolidays = [{ start: '2026-09-01', end: '2026-09-10' }];
   assert.equal(attendanceFor('2026-09-07', 'lunch', calendar).servings, 2);
   calendar.events.push({ date: '2026-09-07', title: 'Congés', type: 'leave' }, { date: '2026-09-07', title: 'Centre', type: 'centre' });
@@ -61,4 +62,24 @@ test('importe et fusionne les événements de plusieurs agendas', async () => {
   const calendar = { accessToken: 'token', expiresAt: Date.now() + 3600000, calendarIds: ['travail', 'famille'] }; const calls = [];
   const events = await fetchEvents(calendar, '2026-08-01', '2026-08-02', async url => { calls.push(url); return { ok: true, json: async () => ({ items: [{ id: url.includes('travail') ? 't' : 'f', summary: 'RDV', start: { dateTime: '2026-08-01T12:00:00+02:00' }, end: { dateTime: '2026-08-01T13:00:00+02:00' } }] }) }; });
   assert.equal(calls.length, 2); assert.deepEqual(new Set(events.map(event => event.calendarId)), new Set(['travail', 'famille'])); assert.ok(events.every(event => event.type === 'appointment' && event.startTime === '12:00'));
+});
+
+test('une correction EDF datée remplace le poste importé', () => {
+  const calendar = { events: [{ date: '2026-08-05', title: 'Après-midi', type: 'afternoon' }], schoolHolidays: [] };
+  const workSchedule = { shiftTypes: { rest: { label: 'Repos', meal: '', preference: 'normal' } }, entries: [{ date: '2026-08-05', type: 'rest', preference: 'auto' }] };
+  const attendance = attendanceFor('2026-08-05', 'dinner', calendar, workSchedule);
+  assert.equal(attendance.papaPresent, true); assert.equal(attendance.workShift, 'rest');
+});
+
+test('les postes EDF déterminent le type de repas et les changements de poste', () => {
+  const calendar = { events: [{ date: '2026-08-04', title: 'Matin', type: 'morning' }, { date: '2026-08-05', title: 'Après-midi', type: 'afternoon' }], schoolHolidays: [] };
+  const lunch = attendanceFor('2026-08-04', 'lunch', calendar);
+  const dinner = attendanceFor('2026-08-05', 'dinner', calendar);
+  assert.equal(lunch.mealPreference, 'transportable'); assert.equal(dinner.mealPreference, 'makeAhead'); assert.equal(dinner.shiftChanged, true);
+});
+
+test('une correction manuelle fonctionne même sans agenda Google', () => {
+  const workSchedule = { shiftTypes: { morning: { label: 'Matin', meal: 'lunch', preference: 'transportable' } }, entries: [{ date: '2026-08-05', type: 'morning', preference: 'express' }] };
+  const attendance = attendanceFor('2026-08-05', 'lunch', {}, workSchedule);
+  assert.equal(attendance.papaPresent, false); assert.equal(attendance.mealPreference, 'express');
 });
