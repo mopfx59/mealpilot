@@ -54,10 +54,18 @@ test('désactive durablement une source après trois échecs', async () => {
   assert.equal(state.providerStatus.demo.failures, 3); assert.equal(state.providerStatus.demo.autoDisabled, true); assert.equal(state.providers.demo.enabled, false);
 });
 
-test('applique le temps disponible et les journées chargées', () => {
-  const recipes = [{ id: 'slow', title: 'Plat lent', season: 'Toute saison', totalMinutes: 90, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'lent', quantity: 1 }] }, { id: 'quick', title: 'Plat rapide', season: 'Toute saison', totalMinutes: 20, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'rapide', quantity: 1 }] }];
-  const state = { recipes, shopping: [] }; const plan = generatePlan(state, { startDate: '2026-08-03', endDate: '2026-08-03', busyDates: ['2026-08-03'], busyMaxMinutes: 30 });
+test('utilise les recettes Menu express aux dates demandées', () => {
+  const recipes = [{ id: 'slow', title: 'Plat classique', season: 'Toute saison', express: false, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'lent', quantity: 1 }] }, { id: 'quick', title: 'Plat express', season: 'Toute saison', express: true, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'rapide', quantity: 1 }] }];
+  const state = { recipes, shopping: [] }; const plan = generatePlan(state, { startDate: '2026-08-03', endDate: '2026-08-03', expressDates: ['2026-08-03'] });
   assert.ok(plan.meals.every(meal => meal.recipeId === 'quick'));
+  assert.ok(plan.meals.every(meal => meal.express));
+});
+
+test('utilise une recette Menu express lorsque Madame est seule sans reste disponible', () => {
+  const recipes = [{ id: 'classic', title: 'Plat classique', season: 'Toute saison', express: false, servings: 3, leftoverFriendly: false, ingredients: [{ name: 'lent', quantity: 1 }] }, { id: 'express', title: 'Omelette express', season: 'Toute saison', express: true, servings: 1, leftoverFriendly: false, ingredients: [{ name: 'œufs', quantity: 2 }] }];
+  const plan = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-08-03', endDate: '2026-08-03', soloMadame: ['2026-08-03'] });
+  assert.ok(plan.meals.every(meal => meal.recipeId === 'express'));
+  assert.ok(plan.meals.every(meal => meal.isSoloMadame && meal.express));
 });
 
 test('exclut une recette d’hiver d’un menu généré en été', () => {
