@@ -19,11 +19,20 @@ test('déplie les événements Google sur leurs journées', () => {
 
 test('applique cantine, vacances, centre et travail aux portions', () => {
   const calendar = { events: [{ date: '2026-09-07', title: 'Matin', type: 'morning' }], schoolHolidays: [] };
-  assert.deepEqual(attendanceFor('2026-09-07', 'lunch', calendar), { servings: 1, papaPresent: false, madamePresent: true, childrenPresent: false, canteen: true, centre: false, schoolHoliday: false, events: ['Matin'] });
+  assert.deepEqual(attendanceFor('2026-09-07', 'lunch', calendar), { servings: 1, papaPresent: false, madamePresent: true, childrenPresent: false, canteen: true, centre: false, afterNight: false, schoolHoliday: false, events: ['Matin'] });
   calendar.schoolHolidays = [{ start: '2026-09-01', end: '2026-09-10' }];
   assert.equal(attendanceFor('2026-09-07', 'lunch', calendar).servings, 2);
   calendar.events.push({ date: '2026-09-07', title: 'Congés', type: 'leave' }, { date: '2026-09-07', title: 'Centre', type: 'centre' });
   assert.equal(attendanceFor('2026-09-07', 'lunch', calendar).servings, 2);
+});
+
+test('une nuit conserve les portions et rend seulement le déjeuner suivant rapide', () => {
+  const calendar = { events: [{ date: '2026-08-12', title: 'Nuit', type: 'night' }], schoolHolidays: [{ start: '2026-07-01', end: '2026-08-31' }] };
+  assert.equal(attendanceFor('2026-08-12', 'lunch', calendar).servings, 3);
+  assert.equal(attendanceFor('2026-08-12', 'dinner', calendar).servings, 3);
+  assert.equal(attendanceFor('2026-08-13', 'lunch', calendar).servings, 3);
+  assert.equal(attendanceFor('2026-08-13', 'lunch', calendar).afterNight, true);
+  assert.equal(attendanceFor('2026-08-13', 'dinner', calendar).afterNight, false);
 });
 
 test('injecte les présences calculées dans le menu généré', () => {
