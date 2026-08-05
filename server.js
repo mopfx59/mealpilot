@@ -48,7 +48,7 @@ function migrateState(state) {
   for (const recipe of state.recipes) {
     recipe.ingredients = (recipe.ingredients || []).map(parseLegacyIngredient).filter(item => item.name);
     recipe.preparation = (recipe.preparation || []).map(String).filter(Boolean);
-    recipe.personal ??= true; recipe.season ||= 'Toute saison'; recipe.seasons = recipeSeasons(recipe); recipe.category ||= 'Autre'; recipe.favorite = Boolean(recipe.favorite); recipe.express ??= isExpressRecipe(recipe); recipe.leftoverFriendly ??= !/salade|tartare|soufflé|friture/i.test(`${recipe.title} ${recipe.category}`);
+    recipe.personal ??= true; recipe.season ||= 'Toute saison'; recipe.seasons = recipeSeasons(recipe); recipe.meals = recipeMeals(recipe); recipe.category ||= 'Autre'; recipe.favorite = Boolean(recipe.favorite); recipe.express ??= isExpressRecipe(recipe); recipe.leftoverFriendly ??= !/salade|tartare|soufflé|friture/i.test(`${recipe.title} ${recipe.category}`);
   }
   if (state.plan?.meals) for (const meal of state.plan.meals) if (!state.recipes.some(recipe => recipe.id === meal.recipeId)) { meal.recipeId = null; meal.fromLeftover = false; }
   for (const item of state.shopping) { item.manual ??= true; item.name ||= item.label || ''; item.label ||= item.name; }
@@ -81,7 +81,7 @@ function recalculateShopping(state) {
 }
 
 function recipePayload(body, existing = {}) {
-  const seasons = Array.isArray(body.seasons) ? [...new Set(body.seasons.filter(season => SEASONS.includes(season)))] : SEASONS.includes(body.season) ? [body.season] : recipeSeasons(existing); return { ...existing, title: String(body.title || '').trim(), description: String(body.description || '').trim(), season: seasons.length === 4 ? 'Toute saison' : seasons[0] || 'Toute saison', seasons: seasons.length ? seasons : [...ALL_SEASONS], category: String(body.category || 'Autre').trim(), servings: Math.max(1, Number(body.servings) || Number(existing.servings) || 3), prepMinutes: Math.max(0, Number(body.prepMinutes) || Number(existing.prepMinutes) || 0), totalMinutes: Math.max(0, Number(body.totalMinutes) || Number(existing.totalMinutes) || 0), express: Object.hasOwn(body, 'express') ? Boolean(body.express) : existing.express ?? false, leftoverFriendly: Object.hasOwn(body, 'leftoverFriendly') ? Boolean(body.leftoverFriendly) : existing.leftoverFriendly ?? true, ingredients: cleanIngredients(body.ingredients), preparation: cleanList(body.preparation), personal: existing.personal ?? true, favorite: existing.favorite ?? false };
+  const seasons = Array.isArray(body.seasons) ? [...new Set(body.seasons.filter(season => SEASONS.includes(season)))] : SEASONS.includes(body.season) ? [body.season] : recipeSeasons(existing); const meals = Array.isArray(body.meals) ? [...new Set(body.meals.filter(meal => ['lunch', 'dinner'].includes(meal)))] : recipeMeals(existing); return { ...existing, title: String(body.title || '').trim(), description: String(body.description || '').trim(), season: seasons.length === 4 ? 'Toute saison' : seasons[0] || 'Toute saison', seasons: seasons.length ? seasons : [...ALL_SEASONS], meals: meals.length ? meals : ['lunch', 'dinner'], category: String(body.category || 'Autre').trim(), servings: Math.max(1, Number(body.servings) || Number(existing.servings) || 3), prepMinutes: Math.max(0, Number(body.prepMinutes) || Number(existing.prepMinutes) || 0), totalMinutes: Math.max(0, Number(body.totalMinutes) || Number(existing.totalMinutes) || 0), express: Object.hasOwn(body, 'express') ? Boolean(body.express) : existing.express ?? false, leftoverFriendly: Object.hasOwn(body, 'leftoverFriendly') ? Boolean(body.leftoverFriendly) : existing.leftoverFriendly ?? true, ingredients: cleanIngredients(body.ingredients), preparation: cleanList(body.preparation), personal: existing.personal ?? true, favorite: existing.favorite ?? false };
 }
 
 function recipeSeasons(recipe) {
@@ -96,6 +96,10 @@ function recipeSeasons(recipe) {
 function isExpressRecipe(recipe) {
   const duration = Number(recipe.totalMinutes || recipe.prepMinutes || 0);
   return (duration > 0 && duration <= 30) || /express|rapide|omelette|croque|salade|sandwich|wrap/i.test(`${recipe.title || ''} ${recipe.category || ''}`);
+}
+
+function recipeMeals(recipe) {
+  return Array.isArray(recipe.meals) && recipe.meals.length ? [...new Set(recipe.meals.filter(meal => ['lunch', 'dinner'].includes(meal)))] : ['lunch', 'dinner'];
 }
 
 async function api(req, res, pathname, url) {

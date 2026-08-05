@@ -68,6 +68,13 @@ test('utilise une recette Menu express lorsque Madame est seule sans reste dispo
   assert.ok(plan.meals.every(meal => meal.isSoloMadame && meal.express));
 });
 
+test('respecte les recettes prévues uniquement pour le déjeuner ou le dîner', () => {
+  const recipes = [{ id: 'lunch-only', title: 'Poulet rôti', season: 'Toute saison', meals: ['lunch'], servings: 3, leftoverFriendly: false, ingredients: [{ name: 'poulet', quantity: 1 }] }, { id: 'dinner-only', title: 'Soupe du soir', season: 'Toute saison', meals: ['dinner'], servings: 3, leftoverFriendly: false, ingredients: [{ name: 'légumes', quantity: 4 }] }];
+  const plan = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-08-03', endDate: '2026-08-03' });
+  assert.equal(plan.meals.find(meal => meal.meal === 'lunch').recipeId, 'lunch-only');
+  assert.equal(plan.meals.find(meal => meal.meal === 'dinner').recipeId, 'dinner-only');
+});
+
 test('exclut une recette d’hiver d’un menu généré en été', () => {
   const recipes = [{ id: 'carbonade', title: 'Carbonade flamande', season: 'Hiver', totalMinutes: 150, servings: 3, leftoverFriendly: true, ingredients: [{ name: 'bœuf', quantity: 500, unit: 'g' }] }, { id: 'summer', title: 'Ratatouille', season: 'Été', totalMinutes: 45, servings: 3, leftoverFriendly: true, ingredients: [{ name: 'courgette', quantity: 2, unit: 'pièces' }] }];
   const state = { recipes, leftovers: [], shopping: [] }; const plan = generatePlan(state, { startDate: '2026-08-10', endDate: '2026-08-10' });
