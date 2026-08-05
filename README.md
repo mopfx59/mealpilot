@@ -4,7 +4,7 @@ MealPilot est un planificateur de repas familial, responsive et auto-hébergé. 
 
 ## Sprint 4 — Agenda et présences
 
-MealPilot peut maintenant lire un agenda Google (OAuth 2.0, accès en lecture seule), reconnaître les événements `Matin`, `R Matin`, `Après-midi`, `R Après-midi`, `Nuit`, `Congés` et `Centre`, puis calculer les portions selon les personnes présentes. La synchronisation se fait depuis l’écran Agenda et automatiquement avant chaque génération de menu. La cantine est appliquée les lundi, mardi, jeudi et vendredi en période scolaire ; les vacances de la zone B sont récupérées depuis l’API officielle du ministère de l’Éducation nationale.
+MealPilot peut lire un ou plusieurs agendas Google (OAuth 2.0, accès en lecture seule), reconnaître les événements `Matin`, `R Matin`, `Après-midi`, `R Après-midi`, `Nuit`, `Congés`, `Centre` et `Absence`, puis calculer les portions selon les personnes présentes. Les rendez-vous, événements horaires et soirées chargées (`Soirée`, `Restaurant`, `Anniversaire`, `Concert`, `Sortie`) déclenchent un menu express lorsque le repas est concerné. La synchronisation se fait depuis l’écran Agenda et automatiquement avant chaque génération de menu. La cantine est appliquée les lundi, mardi, jeudi et vendredi en période scolaire ; les vacances de la zone B sont récupérées depuis l’API officielle du ministère de l’Éducation nationale et dédupliquées.
 
 L’éditeur de recettes utilise désormais des lignes structurées Quantité / Unité / Ingrédient, avec unités proposées, autocomplétion à partir du carnet, ajout et suppression de lignes.
 
