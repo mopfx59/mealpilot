@@ -83,3 +83,8 @@ test('valide une copie figée du menu avec les proportions exactes', async t => 
   const response = await send(base, '/api/plan/validate', 'POST'); const validated = await response.json(); assert.equal(response.status, 200); assert.equal(validated.startDate, '2026-08-03'); assert.equal(validated.endDate, '2026-08-04'); assert.ok(validated.validatedAt); assert.ok(validated.meals.every(meal => meal.recipe?.title && meal.scaledIngredients?.length && meal.exactServings > 0));
   const saved = await (await fetch(`${base}/api/state`)).json(); assert.deepEqual(saved.validatedPlan, validated);
 });
+
+test('enregistre les habitudes et exceptions individuelles des enfants', async t => {
+  const base=await setup(t); const payload={children:[{name:'Alice',portion:0.6,canteenDays:[1,2,4,5],centreDays:[3]},{name:'Tom',portion:0.4,canteenDays:[2,4],centreDays:[]}],exceptions:[{date:'2026-09-08',memberId:'child2',lunch:'home',dinner:'outside'}],specialDays:[{date:'2026-09-10',type:'canteenClosed',label:'Grève'}]};
+  const response=await send(base,'/api/family-schedule','PUT',payload); assert.equal(response.status,200); const schedule=await response.json(); assert.equal(schedule.children[0].name,'Alice'); assert.deepEqual(schedule.children[1].canteenDays,[2,4]); assert.equal(schedule.exceptions[0].dinner,'outside'); assert.equal(schedule.specialDays[0].label,'Grève');
+});

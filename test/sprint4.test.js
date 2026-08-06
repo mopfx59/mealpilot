@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { classifyEvent, expandEvents, authorizationUrl, fetchEvents, fetchZoneBHolidays } = require('../lib/calendar');
-const { attendanceFor, generatePlan } = require('../lib/planner');
+const { attendanceFor, generatePlan, frenchPublicHoliday } = require('../lib/planner');
 
 test('reconnaît les libellés de travail, congés et centre', () => {
   assert.equal(classifyEvent('R Matin'), 'return-morning');
@@ -23,7 +23,7 @@ test('déplie les événements Google sur leurs journées', () => {
 
 test('applique cantine, vacances, centre et travail aux portions', () => {
   const calendar = { events: [{ date: '2026-09-07', title: 'Matin', type: 'morning' }], schoolHolidays: [] };
-  assert.deepEqual(attendanceFor('2026-09-07', 'lunch', calendar), { servings: 1, papaPresent: false, madamePresent: true, childrenPresent: false, canteen: true, centre: false, afterNight: false, busy: false, busyReason: null, workShift: 'morning', shiftChanged: false, mealPreference: 'transportable', schoolHoliday: false, events: ['Matin'] });
+  const attendance=attendanceFor('2026-09-07', 'lunch', calendar); assert.equal(attendance.servings,1); assert.equal(attendance.papaPresent,false); assert.equal(attendance.canteen,true); assert.deepEqual(attendance.children.map(child=>child.status),['canteen','canteen']);
   calendar.schoolHolidays = [{ start: '2026-09-01', end: '2026-09-10' }];
   assert.equal(attendanceFor('2026-09-07', 'lunch', calendar).servings, 2);
   calendar.events.push({ date: '2026-09-07', title: 'Congés', type: 'leave' }, { date: '2026-09-07', title: 'Centre', type: 'centre' });
@@ -82,4 +82,30 @@ test('une correction manuelle fonctionne même sans agenda Google', () => {
   const workSchedule = { shiftTypes: { morning: { label: 'Matin', meal: 'lunch', preference: 'transportable' } }, entries: [{ date: '2026-08-05', type: 'morning', preference: 'express' }] };
   const attendance = attendanceFor('2026-08-05', 'lunch', {}, workSchedule);
   assert.equal(attendance.papaPresent, false); assert.equal(attendance.mealPreference, 'express');
+});
+
+test('gère séparément la cantine et les portions des deux enfants', () => {
+  const familySchedule={children:[{id:'child1',name:'Alice',portion:0.6,canteenDays:[1]},{id:'child2',name:'Tom',portion:0.4,canteenDays:[]}],exceptions:[],specialDays:[]};
+  const attendance=attendanceFor('2026-09-07','lunch',{events:[],schoolHolidays:[]},{},familySchedule);
+  assert.equal(attendance.servings,2.4); assert.deepEqual(attendance.children.map(child=>[child.name,child.status]),[['Alice','canteen'],['Tom','home']]);
+});
+
+test('une exception familiale remplace les habitudes pour chaque repas', () => {
+  const familySchedule={children:[{id:'child1',name:'Alice',portion:0.6,canteenDays:[1]},{id:'child2',name:'Tom',portion:0.4,canteenDays:[1]}],exceptions:[{date:'2026-09-07',memberId:'child1',lunch:'home',dinner:'outside'}],specialDays:[]};
+  assert.equal(attendanceFor('2026-09-07','lunch',{events:[],schoolHolidays:[]},{},familySchedule).servings,2.6);
+  assert.equal(attendanceFor('2026-09-07','dinner',{events:[],schoolHolidays:[]},{},familySchedule).servings,2.4);
+});
+
+test('les jours fériés, ponts et fermetures neutralisent la cantine', () => {
+  const base={children:[{id:'child1',name:'Alice',portion:0.6,canteenDays:[1,2,3,4,5]},{id:'child2',name:'Tom',portion:0.4,canteenDays:[1,2,3,4,5]}],exceptions:[],specialDays:[]};
+  assert.equal(frenchPublicHoliday('2026-05-14'),'Ascension');
+  assert.equal(attendanceFor('2026-05-14','lunch',{events:[],schoolHolidays:[]},{},base).servings,3);
+  assert.equal(attendanceFor('2026-05-15','lunch',{events:[],schoolHolidays:[]},{},{...base,specialDays:[{date:'2026-05-15',type:'bridge'}]}).servings,3);
+  assert.equal(attendanceFor('2026-09-08','lunch',{events:[],schoolHolidays:[]},{},{...base,specialDays:[{date:'2026-09-08',type:'canteenClosed'}]}).servings,3);
+});
+
+test('reconnaît un repas extérieur dans Google Agenda', () => {
+  assert.equal(classifyEvent('Repas extérieur'),'outside');
+  const attendance=attendanceFor('2026-09-08','dinner',{events:[{date:'2026-09-08',title:'Repas extérieur',type:'outside'}],schoolHolidays:[]});
+  assert.equal(attendance.servings,2); assert.ok(attendance.children.every(child=>child.status==='outside'));
 });
