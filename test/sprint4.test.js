@@ -117,3 +117,22 @@ test('calcule automatiquement l’âge et la portion à la date du repas', () =>
   assert.equal(attendanceFor('2026-09-07','dinner',{events:[],schoolHolidays:[]},{},familySchedule).servings,3);
   assert.equal(attendanceFor('2026-09-08','dinner',{events:[],schoolHolidays:[]},{},familySchedule).servings,3.2);
 });
+
+test('ajoute Noé uniquement sur son week-end indiqué dans Google Agenda', () => {
+  const familySchedule={children:[{id:'child1',name:'Alice',birthDate:'2020-01-01',presenceMode:'always',canteenDays:[]},{id:'child2',name:'Tom',birthDate:'2022-01-01',presenceMode:'always',canteenDays:[]},{id:'child3',name:'Noé',birthDate:'2018-01-01',presenceMode:'calendar',calendarKeyword:'Noé',canteenDays:[]}],exceptions:[],specialDays:[]};
+  const calendar={events:[{date:'2026-09-05',title:'Week-end Noé',type:null}],schoolHolidays:[]};
+  assert.equal(attendanceFor('2026-09-04','lunch',calendar,{},familySchedule).children[2].present,false);
+  assert.equal(attendanceFor('2026-09-04','dinner',calendar,{},familySchedule).children[2].present,true);
+  assert.equal(attendanceFor('2026-09-05','lunch',calendar,{},familySchedule).children[2].present,true);
+  assert.equal(attendanceFor('2026-09-06','lunch',calendar,{},familySchedule).children[2].present,true);
+  assert.equal(attendanceFor('2026-09-06','dinner',calendar,{},familySchedule).children[2].present,false);
+  assert.equal(attendanceFor('2026-09-07','lunch',calendar,{},familySchedule).children[2].present,false);
+});
+
+test('suit Noé chaque jour couvert par son événement pendant les vacances', () => {
+  const familySchedule={children:[{id:'child3',name:'Noé',birthDate:'2018-01-01',presenceMode:'calendar',calendarKeyword:'Noé',canteenDays:[]}],exceptions:[],specialDays:[]};
+  const calendar={events:[{date:'2026-10-20',title:'Vacances Noé',type:null},{date:'2026-10-21',title:'Vacances Noé',type:null}],schoolHolidays:[{start:'2026-10-17',end:'2026-11-02'}]};
+  assert.equal(attendanceFor('2026-10-20','dinner',calendar,{},familySchedule).children[0].present,true);
+  assert.equal(attendanceFor('2026-10-21','lunch',calendar,{},familySchedule).children[0].present,true);
+  assert.equal(attendanceFor('2026-10-22','lunch',calendar,{},familySchedule).children[0].present,false);
+});
