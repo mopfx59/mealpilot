@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { classifyEvent, expandEvents, authorizationUrl, fetchEvents, fetchZoneBHolidays } = require('../lib/calendar');
-const { attendanceFor, generatePlan, frenchPublicHoliday } = require('../lib/planner');
+const { attendanceFor, generatePlan, frenchPublicHoliday, ageOn, portionForAge } = require('../lib/planner');
 
 test('reconnaît les libellés de travail, congés et centre', () => {
   assert.equal(classifyEvent('R Matin'), 'return-morning');
@@ -108,4 +108,12 @@ test('reconnaît un repas extérieur dans Google Agenda', () => {
   assert.equal(classifyEvent('Repas extérieur'),'outside');
   const attendance=attendanceFor('2026-09-08','dinner',{events:[{date:'2026-09-08',title:'Repas extérieur',type:'outside'}],schoolHolidays:[]});
   assert.equal(attendance.servings,2); assert.ok(attendance.children.every(child=>child.status==='outside'));
+});
+
+test('calcule automatiquement l’âge et la portion à la date du repas', () => {
+  assert.equal(ageOn('2020-09-08','2026-09-07'),5); assert.equal(ageOn('2020-09-08','2026-09-08'),6);
+  assert.equal(portionForAge(5),0.5); assert.equal(portionForAge(6),0.7); assert.equal(portionForAge(13),1);
+  const familySchedule={children:[{id:'child1',name:'Alice',birthDate:'2020-09-08',portion:0.6,canteenDays:[]},{id:'child2',name:'Tom',birthDate:'2023-01-01',portion:0.4,canteenDays:[]}],exceptions:[],specialDays:[]};
+  assert.equal(attendanceFor('2026-09-07','dinner',{events:[],schoolHolidays:[]},{},familySchedule).servings,3);
+  assert.equal(attendanceFor('2026-09-08','dinner',{events:[],schoolHolidays:[]},{},familySchedule).servings,3.2);
 });
