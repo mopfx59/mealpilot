@@ -138,8 +138,15 @@ test('suit Noé chaque jour couvert par son événement pendant les vacances', (
 });
 
 test('retire la portion de Papa lorsqu’il mange à la cantine EDF', () => {
-  const calendar={events:[{date:'2026-09-08',title:'Nuit',type:'night'}],schoolHolidays:[]};
-  const workSchedule={shiftTypes:{night:{label:'Nuit',meal:'dinner',preference:'workCanteen'}},entries:[]};
+  const calendar={events:[{date:'2026-09-08',title:'Après-midi',type:'afternoon'}],schoolHolidays:[]};
+  const workSchedule={shiftTypes:{afternoon:{label:'Après-midi',meal:'dinner',preference:'workCanteen'}},entries:[]};
   const attendance=attendanceFor('2026-09-08','dinner',calendar,workSchedule);
   assert.equal(attendance.papaPresent,false); assert.equal(attendance.servings,2); assert.equal(attendance.mealPreference,'workCanteen');
+});
+
+test('un poste de nuit conserve le dîner familial et impose un déjeuner express au réveil', () => {
+  const calendar={events:[{date:'2026-09-08',title:'Nuit',type:'night'}],schoolHolidays:[]};
+  const workSchedule={shiftTypes:{night:{label:'Nuit',meal:'dinner',preference:'workCanteen'}},entries:[]};
+  const dinner=attendanceFor('2026-09-08','dinner',calendar,workSchedule),lunch=attendanceFor('2026-09-09','lunch',calendar,workSchedule);
+  assert.equal(dinner.papaPresent,true); assert.equal(dinner.servings,3); assert.equal(lunch.afterNight,true);
 });
