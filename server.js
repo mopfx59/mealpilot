@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { DEFAULT_PROVIDERS, RecipeCollector, fingerprint } = require('./lib/providers');
 const { generatePlan, recalculatePlanShopping, scaledIngredients } = require('./lib/planner');
 const { googleConfig, authorizationUrl, tokenRequest, fetchCalendars, fetchEvents, fetchZoneBHolidays, createOAuthState } = require('./lib/calendar');
+const { classicRecipes } = require('./lib/classics');
 
 const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -17,7 +18,7 @@ const DEFAULT_WORK_SHIFT_TYPES = { morning: { label: 'Matin', start: '04:45', en
 const DEFAULT_FAMILY_SCHEDULE = { children: [{ id: 'child1', name: 'Enfant 1', portion: 0.6, presenceMode: 'always', calendarKeyword: '', canteenDays: [1, 2, 4, 5], centreDays: [] }, { id: 'child2', name: 'Enfant 2', portion: 0.4, presenceMode: 'always', calendarKeyword: '', canteenDays: [1, 2, 4, 5], centreDays: [] }, { id: 'child3', name: 'Noé', portion: 0.5, presenceMode: 'calendar', calendarKeyword: 'Noé', canteenDays: [], centreDays: [] }], exceptions: [], specialDays: [] };
 
 const ingredient = (name, quantity = '', unit = '') => ({ name, quantity, unit });
-const seasonalRecipes = () => [
+const seasonalRecipeBase = () => [
   ['Risotto aux asperges', 'Printemps', 'Végétarien', 'Crémeux et lumineux, idéal au retour des beaux jours.', [ingredient('riz arborio', 300, 'g'), ingredient('asperges vertes', 500, 'g'), ingredient('bouillon de légumes', 1, 'L'), ingredient('parmesan', 80, 'g')], ['Préparer le bouillon et blanchir les asperges.', 'Nacrer le riz puis ajouter le bouillon progressivement.', 'Incorporer les asperges et le parmesan.']],
   ['Tarte petits pois et chèvre', 'Printemps', 'Végétarien', 'Une tarte familiale douce et fraîche.', [ingredient('pâte brisée', 1, 'pièce'), ingredient('petits pois', 300, 'g'), ingredient('fromage de chèvre', 150, 'g'), ingredient('œufs', 3, 'pièces')], ['Préchauffer le four à 190 °C.', 'Garnir la pâte avec les petits pois et le chèvre.', 'Verser les œufs battus et cuire 35 minutes.']],
   ['Ratatouille provençale', 'Été', 'Végétarien', 'Les légumes du soleil mijotés doucement.', [ingredient('courgettes', 2, 'pièces'), ingredient('aubergine', 1, 'pièce'), ingredient('poivrons', 2, 'pièces'), ingredient('tomates', 5, 'pièces')], ['Découper tous les légumes.', 'Faire revenir séparément les légumes.', 'Réunir, assaisonner et mijoter 30 minutes.']],
@@ -27,6 +28,7 @@ const seasonalRecipes = () => [
   ['Bœuf-carottes', 'Hiver', 'Mijoté', 'Le grand classique familial qui se réchauffe très bien.', [ingredient('bœuf à braiser', 800, 'g'), ingredient('carottes', 1, 'kg'), ingredient('oignons', 2, 'pièces'), ingredient('bouillon de bœuf', 500, 'ml')], ['Faire dorer la viande.', 'Ajouter les légumes et le bouillon.', 'Couvrir et mijoter 2 heures à feu doux.']],
   ['Curry de pois chiches', 'Hiver', 'Végétarien', 'Épicé juste ce qu’il faut et prêt rapidement.', [ingredient('pois chiches', 500, 'g'), ingredient('lait de coco', 400, 'ml'), ingredient('tomates concassées', 400, 'g'), ingredient('riz', 300, 'g')], ['Faire revenir les épices.', 'Ajouter pois chiches, tomates et lait de coco.', 'Mijoter 20 minutes et servir avec le riz.']]
 ].map(([title, season, category, description, ingredients, preparation]) => ({ id: randomUUID(), title, season, category, description, ingredients, preparation, servings: 3, totalMinutes: /Mijoté/.test(category) ? 120 : /Salade/.test(category) ? 25 : 45, leftoverFriendly: !/Salade/.test(category), favorite: false, personal: false }));
+const seasonalRecipes = () => [...seasonalRecipeBase(), ...classicRecipes()];
 
 const defaultState = () => ({ recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), plan: null, validatedPlan: null, leftovers: [], shopping: [], providers: structuredClone(DEFAULT_PROVIDERS), providerStatus: {}, recipeCache: {}, familySchedule: structuredClone(DEFAULT_FAMILY_SCHEDULE), workSchedule: { shiftTypes: structuredClone(DEFAULT_WORK_SHIFT_TYPES), entries: [] }, calendar: { connected: false, calendarId: 'primary', calendarName: 'Agenda principal', calendarIds: ['primary'], calendarNames: { primary: 'Agenda principal' }, events: [], schoolHolidays: [], lastSyncAt: null } });
 

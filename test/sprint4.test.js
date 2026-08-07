@@ -2,6 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { classifyEvent, expandEvents, authorizationUrl, fetchEvents, fetchZoneBHolidays } = require('../lib/calendar');
 const { attendanceFor, generatePlan, frenchPublicHoliday, ageOn, portionForAge } = require('../lib/planner');
+const { classicRecipes } = require('../lib/classics');
+
+test('fournit vingt classiques français illustrés sans doublon', () => {
+  const recipes = classicRecipes(); assert.equal(recipes.length, 20);
+  assert.equal(new Set(recipes.map(recipe => recipe.id)).size, 20);
+  assert.ok(recipes.every(recipe => recipe.image === '/assets/french-classics.png'));
+  assert.ok(recipes.every(recipe => recipe.ingredients.length >= 4 && recipe.preparation.length >= 4));
+});
 
 test('reconnaît les libellés de travail, congés et centre', () => {
   assert.equal(classifyEvent('R Matin'), 'return-morning');
