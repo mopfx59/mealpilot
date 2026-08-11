@@ -81,12 +81,12 @@ test('exclut une recette d’hiver d’un menu généré en été', () => {
   assert.ok(plan.meals.every(meal => meal.recipeId !== 'carbonade')); assert.ok(plan.meals.every(meal => meal.recipeId === 'summer'));
 });
 
-test('considère le début septembre comme été jusqu’au 21 septembre', () => {
+test('considère septembre comme été jusqu’au 9 octobre', () => {
   const recipes = [{ id: 'carbonade', title: 'Carbonade flamande', seasons: ['Automne', 'Hiver'], meals: ['lunch'], servings: 3, leftoverFriendly: false, ingredients: [{ name: 'bœuf', quantity: 500 }] }, { id: 'summer', title: 'Poulet froid', seasons: ['Été'], meals: ['lunch'], servings: 3, leftoverFriendly: false, ingredients: [{ name: 'poulet', quantity: 1 }] }, { id: 'dinner', title: 'Salade du soir', seasons: ['Été', 'Automne'], meals: ['dinner'], servings: 3, leftoverFriendly: false, ingredients: [{ name: 'salade', quantity: 1 }] }];
   const summer = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-09-02', endDate: '2026-09-02' });
-  const autumn = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-09-22', endDate: '2026-09-22' });
+  const lateSummer = generatePlan({ recipes, leftovers: [], shopping: [] }, { startDate: '2026-09-22', endDate: '2026-09-22' });
   assert.equal(summer.meals.find(meal => meal.meal === 'lunch').recipeId, 'summer');
-  assert.equal(autumn.meals.find(meal => meal.meal === 'lunch').recipeId, 'carbonade');
+  assert.equal(lateSummer.meals.find(meal => meal.meal === 'lunch').recipeId, 'summer');
 });
 
 test('conserve les recettes Toute saison parmi les choix compatibles', () => {

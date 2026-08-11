@@ -18,7 +18,7 @@ const send = (base, url, method, body) => fetch(`${base}${url}`, { method, heade
 test('fournit une base de recettes saisonnières structurées', async t => {
   const base = await setup(t); const response = await fetch(`${base}/api/state`); const state = await response.json();
   assert.equal(response.status, 200); assert.equal(state.recipes.length, 28); assert.equal(Object.keys(state.menu).length, 7);
-  assert.deepEqual(new Set(state.recipes.map(recipe => recipe.season)), new Set(['Printemps', 'Été', 'Automne', 'Hiver', 'Toute saison']));
+  assert.deepEqual(new Set(state.recipes.flatMap(recipe => recipe.seasons)), new Set(['Printemps', 'Été', 'Hiver']));
   assert.equal(typeof state.recipes[0].ingredients[0].name, 'string'); assert.ok(Object.hasOwn(state.recipes[0].ingredients[0], 'quantity'));
 });
 
