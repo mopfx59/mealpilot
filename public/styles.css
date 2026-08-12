@@ -22,5 +22,6 @@ select{font:inherit;border:1px solid #cdd5cf;border-radius:11px;padding:11px 13p
 .recipe-photo-preview{height:220px;border-radius:12px;background:var(--soft) center/cover no-repeat;border:1px solid var(--line)}
 .photo-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .photo-picker{position:relative;cursor:pointer;margin:0}
+.recipe-group{margin-bottom:18px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}.recipe-group-heading{align-items:center;margin:0;padding:18px 22px;border:0;cursor:pointer;list-style:none}.recipe-group-heading::-webkit-details-marker{display:none}.recipe-group-heading h2{margin:0}.recipe-group-heading b{display:inline-block;margin-left:10px;color:var(--green);font-size:20px;transition:transform .2s}.recipe-group[open]>.recipe-group-heading b{transform:rotate(180deg)}.recipe-group-grid{padding:0 20px 20px}.recent-recipes{padding:22px;margin-bottom:30px;background:linear-gradient(135deg,#effbef,#fff8e6);border-color:#cfe6d1}.recent-recipes .recipe-group-heading{padding:0 0 16px;cursor:default}.recent-recipes .recipe-group-grid{padding:0}.recent-recipes .eyebrow{display:block;margin-bottom:3px}
 .photo-picker input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
 .photo-editor small{color:var(--muted)}

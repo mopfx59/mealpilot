@@ -58,7 +58,7 @@ function migrateState(state) {
     recipe.ingredients = (recipe.ingredients || []).map(parseLegacyIngredient).filter(item => item.name);
     recipe.preparation = (recipe.preparation || []).map(String).filter(Boolean);
     recipe.personal ??= true;
-    if (recipe.classificationVersion !== 1) Object.assign(recipe, classifyRecipe(recipe));
+    if (recipe.classificationVersion !== 2) Object.assign(recipe, classifyRecipe(recipe));
     recipe.season ||= 'Toute saison'; recipe.seasons = recipeSeasons(recipe); recipe.meals = recipeMeals(recipe); recipe.category ||= 'Autres plats'; recipe.favorite = Boolean(recipe.favorite); recipe.express ??= isExpressRecipe(recipe); recipe.transportable ??= /sandwich|wrap|salade|quiche|cake/i.test(`${recipe.title} ${recipe.category}`); recipe.leftoverFriendly ??= !/salade|tartare|soufflé|friture/i.test(`${recipe.title} ${recipe.category}`); recipe.makeAhead ??= recipe.leftoverFriendly;
   }
   if (state.plan?.meals) for (const meal of state.plan.meals) if (!state.recipes.some(recipe => recipe.id === meal.recipeId)) { meal.recipeId = null; meal.fromLeftover = false; }
