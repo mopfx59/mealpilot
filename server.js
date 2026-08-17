@@ -5,7 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { DEFAULT_PROVIDERS, RecipeCollector, fingerprint, canonical } = require('./lib/providers');
 const { generatePlan, recalculatePlanShopping, scaledIngredients } = require('./lib/planner');
 const { googleConfig, authorizationUrl, tokenRequest, fetchCalendars, fetchEvents, fetchZoneBHolidays, createOAuthState } = require('./lib/calendar');
-const { classicRecipes } = require('./lib/classics');
+const { familyCatalog } = require('./lib/family-catalog');
 const { classifyRecipe } = require('./lib/recipe-classification');
 
 const PORT = Number(process.env.PORT || 3000);
@@ -16,6 +16,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const SEASONS = ['Printemps', 'Été', 'Automne', 'Hiver'];
 const ALL_SEASONS = [...SEASONS];
+const CATALOG_VERSION = 1;
 const DEFAULT_WORK_SHIFT_TYPES = { morning: { label: 'Matin', start: '04:45', end: '12:45', meal: 'lunch', preference: 'transportable' }, 'return-morning': { label: 'R Matin', start: '04:45', end: '12:45', meal: 'lunch', preference: 'express' }, afternoon: { label: 'Après-midi', start: '12:45', end: '20:45', meal: 'dinner', preference: 'makeAhead' }, 'return-afternoon': { label: 'R Après-midi', start: '12:45', end: '20:45', meal: 'dinner', preference: 'express' }, night: { label: 'Nuit', start: '20:45', end: '04:45', meal: '', preference: 'normal' }, rest: { label: 'Repos', start: '', end: '', meal: '', preference: 'normal' }, leave: { label: 'Congés', start: '', end: '', meal: '', preference: 'normal' } };
 const DEFAULT_FAMILY_SCHEDULE = { children: [{ id: 'child1', name: 'Enfant 1', portion: 0.6, presenceMode: 'always', calendarKeyword: '', canteenDays: [1, 2, 4, 5], centreDays: [] }, { id: 'child2', name: 'Enfant 2', portion: 0.4, presenceMode: 'always', calendarKeyword: '', canteenDays: [1, 2, 4, 5], centreDays: [] }, { id: 'child3', name: 'Noé', portion: 0.5, presenceMode: 'calendar', calendarKeyword: 'Noé', canteenDays: [], centreDays: [] }], exceptions: [], specialDays: [] };
 
@@ -30,9 +31,9 @@ const seasonalRecipeBase = () => [
   ['Bœuf-carottes', 'Hiver', 'Mijoté', 'Le grand classique familial qui se réchauffe très bien.', [ingredient('bœuf à braiser', 800, 'g'), ingredient('carottes', 1, 'kg'), ingredient('oignons', 2, 'pièces'), ingredient('bouillon de bœuf', 500, 'ml')], ['Faire dorer la viande.', 'Ajouter les légumes et le bouillon.', 'Couvrir et mijoter 2 heures à feu doux.']],
   ['Curry de pois chiches', 'Hiver', 'Végétarien', 'Épicé juste ce qu’il faut et prêt rapidement.', [ingredient('pois chiches', 500, 'g'), ingredient('lait de coco', 400, 'ml'), ingredient('tomates concassées', 400, 'g'), ingredient('riz', 300, 'g')], ['Faire revenir les épices.', 'Ajouter pois chiches, tomates et lait de coco.', 'Mijoter 20 minutes et servir avec le riz.']]
 ].map(([title, season, category, description, ingredients, preparation]) => ({ id: randomUUID(), title, season, category, description, ingredients, preparation, servings: 3, totalMinutes: /Mijoté/.test(category) ? 120 : /Salade/.test(category) ? 25 : 45, leftoverFriendly: !/Salade/.test(category), favorite: false, personal: false }));
-const seasonalRecipes = () => [...seasonalRecipeBase(), ...classicRecipes()];
+const seasonalRecipes = () => familyCatalog();
 
-const defaultState = () => ({ recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), plan: null, validatedPlan: null, leftovers: [], shopping: [], providers: structuredClone(DEFAULT_PROVIDERS), providerStatus: {}, recipeCache: {}, familySchedule: structuredClone(DEFAULT_FAMILY_SCHEDULE), workSchedule: { shiftTypes: structuredClone(DEFAULT_WORK_SHIFT_TYPES), entries: [] }, calendar: { connected: false, calendarId: 'primary', calendarName: 'Agenda principal', calendarIds: ['primary'], calendarNames: { primary: 'Agenda principal' }, events: [], schoolHolidays: [], lastSyncAt: null } });
+const defaultState = () => ({ catalogVersion: CATALOG_VERSION, recipes: seasonalRecipes(), menu: Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }])), plan: null, validatedPlan: null, leftovers: [], shopping: [], providers: structuredClone(DEFAULT_PROVIDERS), providerStatus: {}, recipeCache: {}, familySchedule: structuredClone(DEFAULT_FAMILY_SCHEDULE), workSchedule: { shiftTypes: structuredClone(DEFAULT_WORK_SHIFT_TYPES), entries: [] }, calendar: { connected: false, calendarId: 'primary', calendarName: 'Agenda principal', calendarIds: ['primary'], calendarNames: { primary: 'Agenda principal' }, events: [], schoolHolidays: [], lastSyncAt: null } });
 
 function parseLegacyIngredient(value) {
   if (value && typeof value === 'object') return { name: String(value.name || '').trim(), quantity: value.quantity ?? '', unit: String(value.unit || '').trim() };
@@ -42,6 +43,12 @@ function parseLegacyIngredient(value) {
 }
 
 function migrateState(state) {
+  if (state.catalogVersion !== CATALOG_VERSION) {
+    state.recipes = seasonalRecipes(); state.catalogVersion = CATALOG_VERSION; state.deletedRecipeTitles = [];
+    state.plan = null; state.validatedPlan = null; state.leftovers = [];
+    state.menu = Object.fromEntries(DAYS.map(day => [day, { lunch: null, dinner: null }]));
+    state.shopping = Array.isArray(state.shopping) ? state.shopping.filter(item => item.manual) : [];
+  }
   state.recipes ||= [];
   state.deletedRecipeTitles ||= [];
   const knownSeasonalTitles = new Set(state.recipes.filter(recipe => recipe.personal === false).map(recipe => recipe.title));
@@ -58,7 +65,7 @@ function migrateState(state) {
     recipe.ingredients = (recipe.ingredients || []).map(parseLegacyIngredient).filter(item => item.name);
     recipe.preparation = (recipe.preparation || []).map(String).filter(Boolean);
     recipe.personal ??= true;
-    if (recipe.classificationVersion !== 3) {
+    if (recipe.classificationVersion !== 4) {
       const classification = classifyRecipe(recipe);
       if (recipe.classificationVersion === 2) {
         recipe.category = classification.category;
@@ -141,6 +148,7 @@ async function api(req, res, pathname, url) {
   const providerMatch = pathname.match(/^\/api\/providers\/([^/]+)$/);
   if (providerMatch && req.method === 'PATCH') { const key = decodeURIComponent(providerMatch[1]); if (!state.providers[key]) return json(res, 404, { error: 'Fournisseur introuvable.' }); const body = await readBody(req); if (Object.hasOwn(body, 'enabled')) { state.providers[key].enabled = Boolean(body.enabled); if (body.enabled && state.providerStatus[key]) { state.providerStatus[key].failures = 0; state.providerStatus[key].autoDisabled = false; delete state.providerStatus[key].disabledReason; } } for (const setting of ['timeoutMs', 'minIntervalMs']) if (Number.isFinite(Number(body[setting]))) state.providers[key][setting] = Math.max(250, Number(body[setting])); writeState(state); return json(res, 200, state.providers[key]); }
   if (pathname === '/api/recipes/collect' && req.method === 'POST') { const body = await readBody(req); const query = String(body.query || '').trim(); if (!query) return json(res, 400, { error: 'Recherche requise.' }); const collector = new RecipeCollector(); const found = await collector.search(query, state, Math.min(12, Math.max(1, Number(body.limit) || 8))); const known = new Set(state.recipes.map(recipe => recipe.fingerprint || fingerprint(recipe))); const deletedTitles = deletedRecipeTitleSet(state); const candidates = found.filter(recipe => !known.has(recipe.fingerprint) && !deletedTitles.has(canonical(recipe.title))); writeState(state); return json(res, 200, { found: found.length, candidates, providerStatus: state.providerStatus }); }
+  if (pathname === '/api/recipes/import-url' && req.method === 'POST') { const body = await readBody(req); const collector = new RecipeCollector(); const candidate = await collector.importUrl(body.url, state); const known = new Set(state.recipes.map(recipe => recipe.fingerprint || fingerprint(recipe))); if (known.has(candidate.fingerprint)) return json(res, 409, { error: 'Cette recette existe déjà dans MealPilot.' }); if (deletedRecipeTitleSet(state).has(canonical(candidate.title))) return json(res, 409, { error: 'Cette recette a déjà été supprimée et ne sera pas réimportée.' }); writeState(state); return json(res, 200, { candidate }); }
   if (pathname === '/api/recipes/import' && req.method === 'POST') { const body = await readBody(req); const candidates = Array.isArray(body.recipes) ? body.recipes.slice(0, 12) : []; const known = new Set(state.recipes.map(recipe => recipe.fingerprint || fingerprint(recipe))); const deletedTitles = deletedRecipeTitleSet(state); const added = []; for (const candidate of candidates) { const recipe = { ...candidate, id: randomUUID(), title: String(candidate.title || '').trim(), ingredients: cleanIngredients(candidate.ingredients), preparation: cleanList(candidate.preparation), personal: false, favorite: false }; Object.assign(recipe, classifyRecipe(recipe)); recipe.express ??= isExpressRecipe(recipe); recipe.fingerprint = fingerprint(recipe); if (recipe.title && recipe.ingredients.length && !known.has(recipe.fingerprint) && !deletedTitles.has(canonical(recipe.title))) { known.add(recipe.fingerprint); state.recipes.push(recipe); added.push(recipe); } } writeState(state); return json(res, 201, { added: added.length, recipes: added }); }
   if (pathname === '/api/plan/generate' && req.method === 'POST') { const body = await readBody(req); if (!/^\d{4}-\d{2}-\d{2}$/.test(body.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.endDate)) return json(res, 400, { error: 'Période invalide.' }); try { const tasks = [fetchZoneBHolidays(body.startDate, body.endDate)]; if (state.calendar.refreshToken) tasks.push(fetchEvents(state.calendar, body.startDate, body.endDate)); const [holidays, events] = await Promise.all(tasks); state.calendar.schoolHolidays = holidays; if (events) state.calendar.events = events; state.calendar.lastSyncAt = new Date().toISOString(); delete state.calendar.syncError; } catch (error) { state.calendar.syncError = error.message; } const plan = generatePlan(state, body); recalculatePlanShopping(state); writeState(state); return json(res, 200, { plan, shopping: state.shopping, calendarWarning: state.calendar.syncError || null }); }
   if (pathname === '/api/plan/validate' && req.method === 'POST') { if (!state.plan?.meals?.length) return json(res, 400, { error: 'Générez un menu avant de le valider.' }); const meals = state.plan.meals.map(meal => { const recipe = state.recipes.find(item => item.id === meal.recipeId); if (!recipe) return null; const exactServings = meal.fromLeftover ? meal.servings : meal.cookedServings || meal.servings; return { ...structuredClone(meal), exactServings, scaledIngredients: scaledIngredients(recipe, exactServings), recipe: structuredClone(recipe) }; }); if (meals.some(meal => !meal)) return json(res, 400, { error: 'Une recette du menu est introuvable.' }); state.validatedPlan = { startDate: state.plan.startDate, endDate: state.plan.endDate, generatedAt: state.plan.generatedAt, validatedAt: new Date().toISOString(), meals }; writeState(state); return json(res, 200, state.validatedPlan); }

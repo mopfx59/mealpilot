@@ -17,18 +17,18 @@ const send = (base, url, method, body) => fetch(`${base}${url}`, { method, heade
 
 test('fournit une base de recettes saisonnières structurées', async t => {
   const base = await setup(t); const response = await fetch(`${base}/api/state`); const state = await response.json();
-  assert.equal(response.status, 200); assert.equal(state.recipes.length, 28); assert.equal(Object.keys(state.menu).length, 7);
-  assert.deepEqual(new Set(state.recipes.flatMap(recipe => recipe.seasons)), new Set(['Printemps', 'Été', 'Hiver']));
+  assert.equal(response.status, 200); assert.equal(state.recipes.length, 38); assert.equal(Object.keys(state.menu).length, 7);
+  assert.deepEqual(new Set(state.recipes.flatMap(recipe => recipe.seasons)), new Set(['Printemps', 'Été', 'Automne', 'Hiver']));
   assert.equal(typeof state.recipes[0].ingredients[0].name, 'string'); assert.ok(Object.hasOwn(state.recipes[0].ingredients[0], 'quantity'));
 });
 
-test('ajoute les recettes saisonnières aux données existantes sans doublon', async t => {
+test('remplace une ancienne base par le catalogue versionné sans doublon', async t => {
   const base = await setup(t);
   const dataFile = path.join(process.env.DATA_DIR, 'mealpilot.json');
-  fs.writeFileSync(dataFile, JSON.stringify({ recipes: [{ id: 'legacy', title: 'Recette familiale', ingredients: ['2 carottes'], preparation: ['Cuire'], favorite: true }], menu: {}, shopping: [] }));
+  fs.writeFileSync(dataFile, JSON.stringify({ recipes: [{ id: 'legacy', title: 'Recette familiale', ingredients: ['2 carottes'], preparation: ['Cuire'], favorite: true }], menu: {}, shopping: [], calendar: { refreshToken: 'secret', events: [{ date: '2026-08-17', title: 'Matin', type: 'morning' }] }, familySchedule: { children: [{ name: 'Léa' }, { name: 'Maël' }], exceptions: [], specialDays: [] } }));
   let state = await (await fetch(`${base}/api/state`)).json();
-  assert.equal(state.recipes.length, 29); assert.equal(state.recipes.find(recipe => recipe.id === 'legacy').personal, true);
-  state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.length, 29);
+  assert.equal(state.recipes.length, 38); assert.equal(state.recipes.some(recipe => recipe.id === 'legacy'), false); assert.equal(state.catalogVersion, 1); assert.equal(state.calendar.events[0].title, 'Matin'); assert.equal(state.familySchedule.children[0].name, 'Léa');
+  state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.length, 38);
 });
 
 test('gère le cycle de vie complet des recettes personnelles', async t => {
@@ -73,7 +73,7 @@ test('importe une sélection puis permet de supprimer toute recette définitivem
 
 test('conserve le lien interne d’un reste planifié sans action manuelle', async t => {
   const base = await setup(t);
-  const response = await send(base, '/api/plan/generate', 'POST', { startDate: '2026-08-03', endDate: '2026-08-04', soloMadame: ['2026-08-04'], expressDates: [] });
+  const response = await send(base, '/api/plan/generate', 'POST', { startDate: '2026-11-03', endDate: '2026-11-04', soloMadame: ['2026-11-04'], expressDates: [] });
   assert.equal(response.status, 200); const saved = await (await fetch(`${base}/api/state`)).json(); assert.ok(saved.leftovers.length > 0); const leftover = saved.leftovers[0]; assert.ok(saved.recipes.some(recipe => recipe.id === leftover.recipeId)); assert.ok(leftover.initialServings > 0); assert.ok(leftover.sourceDate); assert.ok(leftover.targetDate); assert.ok(saved.plan.meals.some(meal => meal.fromLeftover && meal.leftoverSourceDate));
 });
 

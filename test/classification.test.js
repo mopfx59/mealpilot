@@ -19,7 +19,7 @@ test('donne la priorité au nom du plat et ignore les anciennes catégories erro
 });
 
 test('déduit automatiquement les saisons culinaires', () => {
-  assert.deepEqual(inferSeasons({ title: 'Gratin dauphinois' }, 'Gratins'), ['Hiver']);
+  assert.deepEqual(inferSeasons({ title: 'Gratin dauphinois' }, 'Gratins'), ['Automne', 'Hiver']);
   assert.deepEqual(inferSeasons({ title: 'Salade tomates mozzarella' }, 'Salades composées'), ['Printemps', 'Été']);
 });
 

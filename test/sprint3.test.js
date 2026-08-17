@@ -47,6 +47,17 @@ test('respecte robots.txt', async () => {
   assert.equal((await collector.search('test', state)).length, 0); assert.match(state.providerStatus.demo.lastError, /robots/);
 });
 
+test('prévisualise une recette depuis une URL en conservant sa source', async () => {
+  const state = { recipeCache: {} }; const collector = new RecipeCollector({ fetchImpl: async url => ({ ok: true, text: async () => url.endsWith('/robots.txt') ? 'User-agent: *\nDisallow:' : structured }) });
+  const recipe = await collector.importUrl('https://example.test/recette', state);
+  assert.equal(recipe.title, 'Tarte aux courgettes'); assert.equal(recipe.source, 'example.test'); assert.equal(recipe.sourceUrl, 'https://example.test/recette'); assert.match(recipe.attribution, /example\.test/);
+});
+
+test('refuse les URL locales lors d’un import', async () => {
+  const collector = new RecipeCollector({ fetchImpl: async () => { throw new Error('ne doit pas être appelé'); } });
+  await assert.rejects(() => collector.importUrl('https://192.168.1.10/recette', { recipeCache: {} }), /locales|privées/);
+});
+
 test('désactive durablement une source après trois échecs', async () => {
   let now = 1000; const state = { providers: { demo: { name: 'Demo', enabled: true, searchUrl: 'https://demo.test/search?q={query}', hosts: ['demo.test'], minIntervalMs: 0, timeoutMs: 10 } }, providerStatus: {}, recipeCache: {} };
   const collector = new RecipeCollector({ fetchImpl: async () => { throw new Error('indisponible'); }, now: () => now });
