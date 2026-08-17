@@ -16,7 +16,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const SEASONS = ['Printemps', 'Été', 'Automne', 'Hiver'];
 const ALL_SEASONS = [...SEASONS];
-const CATALOG_VERSION = 1;
+const CATALOG_VERSION = 2;
 const DEFAULT_WORK_SHIFT_TYPES = { morning: { label: 'Matin', start: '04:45', end: '12:45', meal: 'lunch', preference: 'transportable' }, 'return-morning': { label: 'R Matin', start: '04:45', end: '12:45', meal: 'lunch', preference: 'express' }, afternoon: { label: 'Après-midi', start: '12:45', end: '20:45', meal: 'dinner', preference: 'makeAhead' }, 'return-afternoon': { label: 'R Après-midi', start: '12:45', end: '20:45', meal: 'dinner', preference: 'express' }, night: { label: 'Nuit', start: '20:45', end: '04:45', meal: '', preference: 'normal' }, rest: { label: 'Repos', start: '', end: '', meal: '', preference: 'normal' }, leave: { label: 'Congés', start: '', end: '', meal: '', preference: 'normal' } };
 const DEFAULT_FAMILY_SCHEDULE = { children: [{ id: 'child1', name: 'Enfant 1', portion: 0.6, presenceMode: 'always', calendarKeyword: '', canteenDays: [1, 2, 4, 5], centreDays: [] }, { id: 'child2', name: 'Enfant 2', portion: 0.4, presenceMode: 'always', calendarKeyword: '', canteenDays: [1, 2, 4, 5], centreDays: [] }, { id: 'child3', name: 'Noé', portion: 0.5, presenceMode: 'calendar', calendarKeyword: 'Noé', canteenDays: [], centreDays: [] }], exceptions: [], specialDays: [] };
 

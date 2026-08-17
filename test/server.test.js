@@ -27,7 +27,7 @@ test('remplace une ancienne base par le catalogue versionné sans doublon', asyn
   const dataFile = path.join(process.env.DATA_DIR, 'mealpilot.json');
   fs.writeFileSync(dataFile, JSON.stringify({ recipes: [{ id: 'legacy', title: 'Recette familiale', ingredients: ['2 carottes'], preparation: ['Cuire'], favorite: true }], menu: {}, shopping: [], calendar: { refreshToken: 'secret', events: [{ date: '2026-08-17', title: 'Matin', type: 'morning' }] }, familySchedule: { children: [{ name: 'Léa' }, { name: 'Maël' }], exceptions: [], specialDays: [] } }));
   let state = await (await fetch(`${base}/api/state`)).json();
-  assert.equal(state.recipes.length, 38); assert.equal(state.recipes.some(recipe => recipe.id === 'legacy'), false); assert.equal(state.catalogVersion, 1); assert.equal(state.calendar.events[0].title, 'Matin'); assert.equal(state.familySchedule.children[0].name, 'Léa');
+  assert.equal(state.recipes.length, 38); assert.equal(state.recipes.some(recipe => recipe.id === 'legacy'), false); assert.equal(state.catalogVersion, 2); assert.equal(state.calendar.events[0].title, 'Matin'); assert.equal(state.familySchedule.children[0].name, 'Léa');
   state = await (await fetch(`${base}/api/state`)).json(); assert.equal(state.recipes.length, 38);
 });
 
