@@ -1,0 +1,16 @@
+services:
+  mealpilot:
+    build: .
+    container_name: mealpilot
+    restart: unless-stopped
+    ports:
+      - "8095:3000"
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --dns-result-order=ipv4first
+      DATA_DIR: /data
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+    volumes:
+      - /mnt/user/appdata/mealpilot/data:/data
